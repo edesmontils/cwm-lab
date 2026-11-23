@@ -8,55 +8,63 @@
 </head>
 <body>
 <header>
-  <h1>CWM Lab <span class="sub">— cohérence, validité, règles (CWM 2.0)</span></h1>
+  <h1>CWM Lab <span class="sub" data-i18n="header.sub">— cohérence, validité, règles (CWM 2.0)</span></h1>
   <div id="toolbar">
-    <label for="base-uri" class="toolbar-label">Base&nbsp;URI</label>
+    <label for="base-uri" class="toolbar-label" data-i18n="bar.baseUri">Base&nbsp;URI</label>
     <input id="base-uri" type="text" spellcheck="false"
       placeholder="http://example.org/document.n3">
-    <button id="btn-parse" class="primary" title="Parse maintenant (⌘⏎ / Ctrl⏎)">Parse</button>
+    <button id="btn-parse" class="primary" data-i18n="bar.parse" data-i18n-title="bar.parseTitle">Parse</button>
     <span id="status" class="status"></span>
     <span class="bar-sep" aria-hidden="true"></span>
-    <label for="exercise-select" class="toolbar-label">Exercice</label>
-    <select id="exercise-select"
-      title="Charge l'exercice choisi dans les éditeurs (données, règles, requête, conclusion) et affiche son énoncé">
-      <option value="">— aucun —</option>
+    <label for="exercise-select" class="toolbar-label" data-i18n="bar.exercise">Exercice</label>
+    <select id="exercise-select" data-i18n-title="bar.exerciseTitle">
+      <option value="" data-i18n="bar.exerciseNone">— aucun —</option>
     </select>
-    <button id="btn-load-exercise" title="Remplir les éditeurs avec l'exercice choisi (remplace le contenu actuel) et afficher son énoncé">Charger</button>
+    <button id="btn-load-exercise" data-i18n="bar.load" data-i18n-title="bar.loadTitle">Charger</button>
+    <!-- Sélecteur de langue (i18n.js) : FR par défaut, persistance
+         locale ; les chaînes statiques portent data-i18n, les
+         chaînes dynamiques sont re-rendues par app.js. -->
+    <span class="bar-sep" aria-hidden="true"></span>
+    <label for="lang-select" class="toolbar-label" data-i18n="bar.lang">Langue</label>
+    <select id="lang-select" data-i18n-title="bar.langTitle">
+      <option value="fr">Français</option>
+      <option value="en">English</option>
+    </select>
   </div>
   <div id="toolbar-export">
-    <span class="toolbar-label">Export&nbsp;:</span>
-    <button class="export-btn" data-format="n3" title="Exporter en N3 (règles comprises)">N3</button>
-    <button class="export-btn" data-format="turtle" title="Exporter en Turtle (RDF pur uniquement)">Turtle</button>
-    <button class="export-btn" data-format="ntriples" title="Exporter en NTriples (RDF pur uniquement)">NTriples</button>
-    <button class="export-btn" data-format="rdf" title="Exporter en RDF/XML">RDF/XML</button>
+    <span class="toolbar-label" data-i18n="bar.export">Export&nbsp;:</span>
+    <button class="export-btn" data-format="n3" data-i18n-title="bar.exportN3Title">N3</button>
+    <button class="export-btn" data-format="turtle" data-i18n-title="bar.exportTurtleTitle">Turtle</button>
+    <button class="export-btn" data-format="ntriples" data-i18n-title="bar.exportNtTitle">NTriples</button>
+    <button class="export-btn" data-format="rdf" data-i18n-title="bar.exportRdfTitle">RDF/XML</button>
   </div>
 </header>
 
 <main>
   <div id="enonce-panel" hidden>
     <details open>
-      <summary>Énoncé — <span id="enonce-title"></span></summary>
+      <summary><span data-i18n="enonce.summary">Énoncé</span> — <span id="enonce-title"></span></summary>
       <div id="enonce-text" class="enonce-html"></div>
     </details>
   </div>
 
   <div id="layout">
     <section id="editor-pane">
-      <h2>Document — données (N3 / Turtle)</h2>
+      <h2 data-i18n="ed.data">Document — données (N3 / Turtle)</h2>
       <!-- P9 : bannière « généré par IA, à vérifier » — visible tant
            que le document contient la dernière génération (masquée
            par toute édition manuelle, un chargement d'exercice, ou
            le bouton ×). -->
       <div id="ia-banner" class="ia-banner" hidden>
-        <span id="ia-banner-text">⚠ Données générées par IA — à vérifier avant raisonnement / interrogation.</span>
-        <button id="ia-banner-close" title="Masquer la bannière">×</button>
+        <span id="ia-banner-text" data-i18n="ia.banner">⚠ Données générées par IA — à vérifier avant raisonnement / interrogation.</span>
+        <button id="ia-banner-close" data-i18n-title="ia.bannerClose">×</button>
       </div>
       <div id="editor"></div>
 
-      <h2 class="mt1">Règles (N3)</h2>
+      <h2 class="mt1" data-i18n="ed.rules">Règles (N3)</h2>
       <div id="editor-rules"></div>
 
-      <h2 class="mt1">Requête (SPARQL)</h2>
+      <h2 class="mt1" data-i18n="ed.query">Requête (SPARQL)</h2>
       <div id="editor-query"></div>
 
       <!-- P7.1 : l'éditeur Conclusion/Preuve est dans la colonne de
@@ -69,47 +77,47 @@
            droite, et se met à jour tout seul). -->
       <div id="action-bar">
         <div class="bar-group">
-          <span class="bar-title">Raisonnement</span>
-          <button id="btn-infer" class="primary" title="Appliquer les règles aux données (clôture, nouveaux faits, incohérence)">Raisonner</button>
-          <label for="infer-mode" class="toolbar-label-light">mode&nbsp;:</label>
-          <select id="infer-mode" title="convergence (think) = point fixe ; 1 passe (applyRules) = une seule application de chaque règle">
-            <option value="think" selected>convergence (think)</option>
-            <option value="once">1 passe (applyRules)</option>
+          <span class="bar-title" data-i18n="bar.reasoning">Raisonnement</span>
+          <button id="btn-infer" class="primary" data-i18n="bar.infer" data-i18n-title="bar.inferTitle">Raisonner</button>
+          <label for="infer-mode" class="toolbar-label-light" data-i18n="bar.mode">mode&nbsp;:</label>
+          <select id="infer-mode" data-i18n-title="bar.modeTitle">
+            <option value="think" data-i18n="bar.modeThink">convergence (think)</option>
+            <option value="once" data-i18n="bar.modeOnce">1 passe (applyRules)</option>
           </select>
-          <label class="toolbar-label-light"><input type="checkbox" id="infer-store-rules"
-            title="copier les énoncés-règles dans la clôture (comme cwm --rules)">règles stockées</label>
-          <label class="toolbar-label-light" for="infer-timeout">timeout (s)&nbsp;:</label>
+          <label class="toolbar-label-light" data-i18n-title="bar.rulesStoredTitle"><input type="checkbox" id="infer-store-rules"
+            title="copier les énoncés-règles dans la clôture (comme cwm --rules)"><span data-i18n="bar.rulesStored">règles stockées</span></label>
+          <label class="toolbar-label-light" for="infer-timeout" data-i18n="bar.timeout">timeout (s)&nbsp;:</label>
           <input id="infer-timeout" type="number" min="0" step="1" value="10"
-            title="délai maximum de raisonnement ; 0 = sans limite" style="width:4rem">
+            title="délai maximum de raisonnement ; 0 = sans limite" data-i18n-title="bar.timeoutTitle" style="width:4rem">
         </div>
         <div class="bar-group">
-          <span class="bar-title">Interroger</span>
-          <button id="btn-query" class="primary" title="Exécuter la requête SPARQL sur les données (et sur la clôture si « raisonner avant »)">Interroger</button>
-          <label class="toolbar-label-light"><input type="checkbox" id="query-reason"
-            title="calculer d'abord la clôture, puis ré-exécuter la même requête : les lignes nouvelles sont surlignées">raisonner avant&nbsp;d'interroger</label>
+          <span class="bar-title" data-i18n="bar.queryGroup">Interroger</span>
+          <button id="btn-query" class="primary" data-i18n="bar.query" data-i18n-title="bar.queryTitle">Interroger</button>
+          <label class="toolbar-label-light" data-i18n-title="bar.reasonFirstTitle"><input type="checkbox" id="query-reason"
+            title="calculer d'abord la clôture, puis ré-exécuter la même requête : les lignes nouvelles sont surlignées"><span data-i18n="bar.reasonFirst">raisonner avant&nbsp;d'interroger</span></label>
         </div>
         <div class="bar-group">
-          <span class="bar-title">Valider</span>
-          <button id="btn-entail" class="primary"
-            title="La clôture (données + règles appliquées) contient-elle la conclusion de l'éditeur « Conclusion » ?">Entraîne&nbsp;?</button>
-          <button id="btn-why" class="primary"
-            title="Générer la preuve de la clôture dans l'onglet « Preuve » — altérez-la ensuite à la main">Pourquoi&nbsp;?</button>
-          <button id="btn-check" class="primary"
-            title="Vérifier la preuve de l'onglet « Preuve » : la dérivation est re-jouée — une preuve altérée est rejetée">Vérifier&nbsp;la&nbsp;preuve</button>
+          <span class="bar-title" data-i18n="bar.validate">Valider</span>
+          <button id="btn-entail" class="primary" data-i18n="bar.entail"
+            data-i18n-title="bar.entailTitle">Entraîne&nbsp;?</button>
+          <button id="btn-why" class="primary" data-i18n="bar.why"
+            data-i18n-title="bar.whyTitle">Pourquoi&nbsp;?</button>
+          <button id="btn-check" class="primary" data-i18n="bar.check"
+            data-i18n-title="bar.checkTitle">Vérifier&nbsp;la&nbsp;preuve</button>
         </div>
         <!-- P9 : génération de données par IA générative (proxy
              institutionnel) — le texte généré arrive dans l'éditeur
              (visible, modifiable), jamais en base cachée. -->
         <div class="bar-group">
-          <span class="bar-title">Générer&nbsp;(IA)</span>
-          <button id="btn-ia" class="primary"
-            title="Générer un jeu de données N3 réaliste (domaine de l'exercice chargé, sinon générique) et l'injecter dans l'éditeur « données » — contrôlé (parse, cohérence, plausibilité), à vérifier">Remplir&nbsp;la&nbsp;base&nbsp;(IA)</button>
-          <label class="toolbar-label-light" for="ia-facts">faits&nbsp;≈</label>
+          <span class="bar-title" data-i18n="bar.generate">Générer&nbsp;(IA)</span>
+          <button id="btn-ia" class="primary" data-i18n="bar.generateBtn"
+            data-i18n-title="bar.generateBtnTitle">Remplir&nbsp;la&nbsp;base&nbsp;(IA)</button>
+          <label class="toolbar-label-light" for="ia-facts" data-i18n="bar.facts">faits&nbsp;≈</label>
           <input id="ia-facts" type="number" min="5" max="2000" value="40"
-            title="nombre approximatif de faits à générer" style="width:4rem">
-          <label class="toolbar-label-light" for="ia-entities">entités&nbsp;≈</label>
+            title="nombre approximatif de faits à générer" data-i18n-title="bar.factsTitle" style="width:4rem">
+          <label class="toolbar-label-light" for="ia-entities" data-i18n="bar.entities">entités&nbsp;≈</label>
           <input id="ia-entities" type="number" min="2" max="500" value="10"
-            title="nombre approximatif d'entités à générer" style="width:4rem">
+            title="nombre approximatif d'entités à générer" data-i18n-title="bar.entitiesTitle" style="width:4rem">
           <span id="ia-quota" class="ia-quota"></span>
         </div>
       </div>
@@ -120,23 +128,24 @@
          grid sont minmax(0, …)) — seule la poignée le fait, et la
          largeur choisie est persistée (localStorage). -->
     <div id="col-resizer" role="separator" aria-orientation="vertical"
+      data-i18n-title="resizerTitle" data-i18n-aria="resizerAria"
       title="Glisser pour ajuster la largeur des colonnes" aria-label="Ajuster la largeur des colonnes"></div>
 
     <section id="side-pane">
       <!-- P7 : graphe systématiquement visible — re-rendu à chaque
            action (édition, raisonnement, requête, exercice). -->
       <div id="graph-panel">
-        <h2>Graphe <span id="graph-meta" class="sub"></span></h2>
+        <h2><span data-i18n="graph.title">Graphe</span> <span id="graph-meta" class="sub"></span></h2>
         <div id="graph-controls">
-          <label class="toolbar-label-light"><input type="checkbox" id="graph-reason"
-            title="calculer d'abord la clôture (données + règles), puis surligner ce qu'elle ajoute">après&nbsp;raisonnement</label>
-          <label class="toolbar-label-light"><input type="checkbox" id="graph-hide-literals"
-            title="masquer les nœuds-littéraux : les attributs sont regroupés en pastille (compteur) sur le nœud — survolez la pastille pour les lire">attributs&nbsp;masqués</label>
+          <label class="toolbar-label-light" data-i18n-title="graph.afterReasoningTitle"><input type="checkbox" id="graph-reason"
+            title="calculer d'abord la clôture (données + règles), puis surligner ce qu'elle ajoute"><span data-i18n="graph.afterReasoning">après&nbsp;raisonnement</span></label>
+          <label class="toolbar-label-light" data-i18n-title="graph.hideLiteralsTitle"><input type="checkbox" id="graph-hide-literals"
+            title="masquer les nœuds-littéraux : les attributs sont regroupés en pastille (compteur) sur le nœud — survolez la pastille pour les lire"><span data-i18n="graph.hideLiterals">attributs&nbsp;masqués</span></label>
           <span id="graph-legend" class="graph-legend">
-            <span class="legend-dot resource"></span> ressource
-            <span class="legend-dot literal"></span> littéral
-            <span class="legend-dot blank"></span> nœud vide
-            <span class="legend-dot inferred"></span> inféré
+            <span class="legend-dot resource"></span> <span data-i18n="graph.legendResource">ressource</span>
+            <span class="legend-dot literal"></span> <span data-i18n="graph.legendLiteral">littéral</span>
+            <span class="legend-dot blank"></span> <span data-i18n="graph.legendBlank">nœud vide</span>
+            <span class="legend-dot inferred"></span> <span data-i18n="graph.legendInferred">inféré</span>
           </span>
         </div>
         <div id="graph-wrap">
@@ -147,33 +156,33 @@
       </div>
 
       <div id="proof-pane">
-        <h2>Conclusion / Preuve (N3)</h2>
+        <h2 data-i18n="proof.title">Conclusion / Preuve (N3)</h2>
         <div id="proof-tabs" role="tablist">
-          <button id="tab-concl" class="tab active"
-            title="La conclusion à tester : la KB (données + règles) l'entraîne-t-elle ?">Conclusion</button>
-          <button id="tab-proof" class="tab"
-            title="La preuve (générée par « Pourquoi ? », altérable à la main) — « Vérifier la preuve » rejoue la dérivation">Preuve</button>
+          <button id="tab-concl" class="tab active" data-i18n="tab.concl"
+            data-i18n-title="tab.conclTitle">Conclusion</button>
+          <button id="tab-proof" class="tab" data-i18n="tab.proof"
+            data-i18n-title="tab.proofTitle">Preuve</button>
         </div>
         <div id="editor-concl"></div>
         <div id="editor-proof" hidden></div>
       </div>
 
       <div id="results-pane">
-        <h2>Résultats</h2>
+        <h2 data-i18n="results.title">Résultats</h2>
         <!-- P7 : résultats consolidés en onglets (au lieu de N blocs
              empilés) — l'onglet correspondant s'ouvre à chaque action. -->
         <div id="results-tabs" role="tablist">
-          <button class="res-tab active" data-tab="parse" role="tab">Parse</button>
-          <button class="res-tab" data-tab="infer" role="tab">Raisonnement</button>
-          <button class="res-tab" data-tab="query" role="tab">Requête</button>
-          <button class="res-tab" data-tab="entail" role="tab">Entraînement</button>
-          <button class="res-tab" data-tab="proof" role="tab">Preuve</button>
-          <button class="res-tab" data-tab="export" role="tab">Export</button>
-          <button class="res-tab" data-tab="ia" role="tab">Génération (IA)</button>
+          <button class="res-tab active" data-tab="parse" role="tab" data-i18n="tab.parse">Parse</button>
+          <button class="res-tab" data-tab="infer" role="tab" data-i18n="tab.infer">Raisonnement</button>
+          <button class="res-tab" data-tab="query" role="tab" data-i18n="tab.query">Requête</button>
+          <button class="res-tab" data-tab="entail" role="tab" data-i18n="tab.entail">Entraînement</button>
+          <button class="res-tab" data-tab="proof" role="tab" data-i18n="tab.proofRes">Preuve</button>
+          <button class="res-tab" data-tab="export" role="tab" data-i18n="tab.export">Export</button>
+          <button class="res-tab" data-tab="ia" role="tab" data-i18n="tab.ia">Génération (IA)</button>
         </div>
 
         <div class="res-pane active" id="pane-parse">
-          <div id="results" class="results"><p class="muted">Le parse est automatique pendant la saisie (⌘⏎ / Ctrl⏎ pour forcer).</p></div>
+          <div id="results" class="results"><p class="muted" data-i18n="pane.parseHint">Le parse est automatique pendant la saisie (⌘⏎ / Ctrl⏎ pour forcer).</p></div>
         </div>
 
         <div class="res-pane" id="pane-infer">
@@ -200,14 +209,14 @@
           <div id="export-format" class="tabmeta"></div>
           <pre id="export-output" class="export-output"></pre>
           <div id="export-actions">
-            <a id="export-download" class="download" download hidden>⬇ Télécharger</a>
-            <button id="export-close">Fermer</button>
+            <a id="export-download" class="download" download hidden data-i18n="export.download">⬇ Télécharger</a>
+            <button id="export-close" data-i18n="export.close">Fermer</button>
           </div>
         </div>
 
         <div class="res-pane" id="pane-ia">
           <div id="ia-meta" class="tabmeta"></div>
-          <div id="ia-output" class="results"><p class="muted">Bouton « Remplir la base (IA) » : génère un jeu de données N3 réaliste (domaine de l'exercice chargé, sinon générique), contrôlé a posteriori (parse, cohérence avec les règles, plausibilité), et l'injecte dans l'éditeur « données ».</p></div>
+          <div id="ia-output" class="results"><p class="muted" data-i18n="pane.iaHint">Bouton « Remplir la base (IA) » : génère un jeu de données N3 réaliste (domaine de l'exercice chargé, sinon générique), contrôlé a posteriori (parse, cohérence avec les règles, plausibilité), et l'injecte dans l'éditeur « données ».</p></div>
         </div>
       </div>
     </section>
@@ -218,11 +227,14 @@
      vis-data définit l'objet global `vis`, vis-network l'étend. -->
 <script src="/static/vendor/vis/vis-data.min.js"></script>
 <script src="/static/vendor/vis/vis-network.min.js"></script>
+<!-- i18n (module, exécuté avant app.js) : applique les chaînes
+     statiques et gère le sélecteur de langue de l'entête. -->
+<script type="module" src="/static/i18n.js"></script>
 <script type="module" src="/static/app.js"></script>
 <footer id="colophon">
-  <span>© 2026 Emmanuel Desmontils — Nantes Université</span>
+  <span data-i18n="colophon.copyright">© 2026 Emmanuel Desmontils — Nantes Université</span>
   <span aria-hidden="true">·</span>
-  <span>CWM Lab, version <span id="version">…</span></span>
+  <span><span data-i18n="colophon.version">CWM Lab, version</span> <span id="version">…</span></span>
   <span aria-hidden="true">·</span>
   <span>2026-11-23</span>
 </footer>

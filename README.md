@@ -143,6 +143,28 @@ provider pour construire le prompt (contexte de domaine). Rien
 n'est envoyé sans ce clic ; la taille et le contenu du prompt sont
 bornés (énoncé ≤ 8 k caractères, règles ≤ 6 k).
 
+**P10 livrée** (2026-11-23) : **internationalisation de
+l'interface** — l'application est disponible en **français (par
+défaut) et en anglais**, avec un **sélecteur de langue dans la
+barre d'entête** (préférence persistée en localStorage ; `<html
+lang>` et le titre de page suivent la langue). Le module
+`static/i18n.js` (zéro dépendance) porte les deux dictionnaires et
+applique les chaînes statiques via des attributs `data-i18n`
+(texte, placeholder, infobulles, aria) ; les chaînes dynamiques
+(résultats, bannières, erreurs) passent par `t(key, …)` dans
+`app.js` et sont **re-rendues au changement de langue** — sans
+re-fetch, sans forcer l'onglet actif, sans reconstruire le graphe
+(la vue utilisateur est préservée) et sans écraser une preuve
+altérée à la main. Côté backend, les messages de l'IA (quota,
+erreurs proxy, contrôles, refus de génération, statut) sont
+localisés dans `ia.py` (table `MESSAGES` fr/en) : le front envoie
+sa langue (`/api/ia/status?lang=`, `lang` dans le body de
+`/api/ia/generate` ; défaut et repli `fr`). **Hors périmètre
+(contenu, pas interface)** : les énoncés des exercices, la note du
+modèle, les erreurs du moteur de parse CWM (anglais technique) — et
+le **prompt du modèle reste en français** (calibré sur les
+énoncés du TP). 12 tests ; version `0.5.0`.
+
 **P7 livrée** (2026-11-23) : **reprise d'ergonomie** — l'interface
 est repensée pour un étudiant qui découvre l'outil :
 
@@ -243,6 +265,8 @@ cwm-lab/
 │   │   │                #   d'actions | graphe persistant + onglets)
 │   │   ├── app.js       # éditeur CodeMirror + appels API + affichage
 │   │   │                #   (onglets de résultats, graphe auto, pastilles)
+│   │   ├── i18n.js      # P10 : dictionnaires FR/EN + t() + sélecteur
+│   │   │                #   de langue (persistance, re-rendu i18n)
 │   │   ├── style.css    # styles du tableau de bord
 │   │   ├── vendor/codemirror/  # CodeMirror 6 en bundle local (esbuild)
 │   │   └── vendor/vis/         # vis-network + vis-data (UMD, graphe)

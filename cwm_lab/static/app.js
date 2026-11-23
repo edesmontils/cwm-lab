@@ -71,6 +71,7 @@ import {
   linter, lintGutter, forceLinting,
   tags, turtle, basicSetup,
 } from "/static/vendor/codemirror/codemirror.js";
+import { t, onLangChange, lang as i18nLang } from "/static/i18n.js";
 
 // URI de base par défaut — identique à engine.DEFAULT_BASE_URI.
 const DEFAULT_BASE_URI = "http://example.org/document.n3";
@@ -319,8 +320,23 @@ const editorViews = { kb: editorView, rules: rulesView, query: queryView,
                       concl: conclView, proof: proofView };
 const editorLangs = { kb: "n3", rules: "n3", query: "sparql",
                       concl: "n3", proof: "n3" };
-const editorLabels = { kb: "document", rules: "règles", query: "requête",
-                       concl: "conclusion", proof: "preuve" };
+// Libellés des éditeurs (localisés — i18n.js).
+const LABEL_KEY = { kb: "label.document", rules: "label.rules",
+                    query: "label.query", concl: "label.conclusion",
+                    proof: "label.proof" };
+const labelOf = (which) => t(LABEL_KEY[which] || which);
+// Libellés des documents taguant les erreurs (kb / rules / query /
+// concl / proof) — localisés.
+const DOC_KEY = { kb: "doc.data", rules: "doc.rules", query: "doc.query",
+                  concl: "doc.conclusion", proof: "doc.proof" };
+const docLabel = (which) => t(DOC_KEY[which] || which);
+
+// i18n : dernier état de chaque rendu — un changement de langue
+// re-rend les résultats dans la nouvelle langue (sans re-fetch, sans
+// re-réclamer l'onglet actif, sans écraser les éditions manuelles).
+const lastRender = { parse: null, infer: null, query: null, entail: null,
+                     prove: null, check: null, ia: null, graph: null,
+                     exportFormat: null };
 
 // Onglets « Conclusion / Preuve » (éditeur 4) : deux CodeMirror, un
 // seul visible. Le passage d'onglet réveille le view caché (mesure).
@@ -361,7 +377,7 @@ async function parseNow(which) {
   const seq = ++parseSeq;
   const view = editorViews[activeEditor];
   const language = editorLangs[activeEditor];
-  setStatus("parse en cours…");
+  setStatus(t("status.parsing"));
   const text = view.state.doc.toString();
   const base_uri = baseUriInput.value.trim() || DEFAULT_BASE_URI;
   try {
@@ -374,45 +390,46 @@ async function parseNow(which) {
     if (activeEditor === "kb") scheduleGraphRefresh(600);
   } catch (e) {
     if (seq !== parseSeq) return;
-    setStatus("erreur réseau : " + e, "error");
+    setStatus(t("status.networkError", e), "error");
   }
 }
 
-function renderResults(data, which) {
+function renderResults(data, which, tab = true) {
   which = which || activeEditor;
-  const label = editorLabels[which];
+  lastRender.parse = { data, which };
+  const label = labelOf(which);
   if (!data.ok) {
-    setStatus("erreur de syntaxe", "error");
+    setStatus(t("status.syntaxError"), "error");
     const items = (data.errors || []).map((er) =>
-      `<li class="error">ligne ${er.line}, col. ${er.column} — ${esc(er.message)}</li>`
+      `<li class="error">${t("parse.errorLine", er.line, er.column, esc(er.message))}</li>`
     ).join("");
-    results.innerHTML = `<p class="error">Éditeur « ${label} » : erreur de syntaxe.</p>
+    results.innerHTML = `<p class="error">${t("parse.editorError", esc(label))}</p>
       <ul class="errors">${items}</ul>`;
-    markTab("parse");
+    if (tab) markTab("parse");
     return;
   }
   const st = data.stats;
-  setStatus("OK" + (data.cached ? " (cache)" : ""));
+  setStatus(t("status.ok", data.cached ? " (" + t("meta.cache") + ")" : ""));
   if (which === "query") {
     // Stats SPARQL : type de requête + variables de la clause SELECT.
     results.innerHTML = `
-    <p class="ok">Éditeur « ${label} » : requête valide.</p>
+    <p class="ok">${t("parse.editorValidQuery", esc(label))}</p>
     <ul class="stats">
-      <li>type : <b>${esc(st.queryType || "inconnue")}</b></li>
-      <li>variables : ${st.variables.length
+      <li>${t("parse.queryType")} <b>${esc(st.queryType || t("parse.queryTypeUnknown"))}</b></li>
+      <li>${t("parse.variables")} ${st.variables.length
         ? st.variables.map((v) => `<code>?${esc(v)}</code>`).join(" ")
-        : "— (SELECT * ou ASK)"}</li>
+        : t("parse.noVariables")}</li>
     </ul>`;
     return;
   }
   results.innerHTML = `
-    <p class="ok">Éditeur « ${label} » : valide.</p>
+    <p class="ok">${t("parse.editorValid", esc(label))}</p>
     <ul class="stats">
-      <li><b>${st.statements}</b> énoncé(s)</li>
-      <li><b>${st.rules}</b> règle(s) <code>log:implies</code></li>
-      <li><b>${st.blankNodes}</b> nœud(s) vide(s)</li>
+      <li><b>${st.statements}</b> ${t("parse.statements")}</li>
+      <li><b>${st.rules}</b> ${t("parse.rules")} <code>log:implies</code></li>
+      <li><b>${st.blankNodes}</b> ${t("parse.blankNodes")}</li>
     </ul>`;
-  markTab("parse");
+  if (tab) markTab("parse");
 }
 
 document.getElementById("btn-parse").addEventListener("click", () => parseNow(activeEditor));
@@ -439,6 +456,7 @@ const EXPORT_EXT = { n3: ".n3", turtle: ".ttl", ntriples: ".nt", rdf: ".rdf" };
 let exportBlobUrl = null;
 
 async function doExport(format) {
+  lastRender.exportFormat = format;
   const text = editorView.state.doc.toString();
   const base_uri = baseUriInput.value.trim() || DEFAULT_BASE_URI;
   switchTab("export");
@@ -452,7 +470,7 @@ async function doExport(format) {
     });
     const data = await resp.json();
     if (data.ok) {
-      exportOutput.textContent = data.output || "(document vide)";
+      exportOutput.textContent = data.output || t("export.empty");
       const blob = new Blob([data.output], { type: "text/plain;charset=utf-8" });
       if (exportBlobUrl) URL.revokeObjectURL(exportBlobUrl);
       exportBlobUrl = URL.createObjectURL(blob);
@@ -466,7 +484,7 @@ async function doExport(format) {
     }
   } catch (e) {
     exportOutput.classList.add("error");
-    exportOutput.textContent = "erreur réseau : " + e;
+    exportOutput.textContent = t("status.networkError", e);
     exportDownload.hidden = true;
   }
 }
@@ -489,48 +507,46 @@ function fmtTriple([s, p, o]) {
   return `<code>${esc(s)} ${esc(p)} ${esc(o)} .</code>`;
 }
 
-function renderInfer(data) {
+function renderInfer(data, tab = true) {
+  lastRender.infer = data;
   const parts = [];
 
   if (!data.ok && !data.timeout) {
     // erreurs de parse (taguées par éditeur)
     const items = (data.errors || []).map((er) =>
-      `<li class="error">${er.doc === "rules" ? "règles" : "données"} — ` +
-      `ligne ${er.line}, col. ${er.column} : ${esc(er.message)}</li>`
+      `<li class="error">${docLabel(er.doc)} — ` +
+      `${t("parse.errorLine", er.line, er.column, esc(er.message))}</li>`
     ).join("");
     parts.push(`<ul class="errors">${items}</ul>`);
     inferMeta.textContent = "";
   } else {
     const bits = [];
-    bits.push(data.new_facts.length + " fait(s) nouveau(x)");
-    bits.push(data.closure_statements + " énoncé(s) dans la clôture");
-    if (data.rules_in_closure) bits.push(data.rules_in_closure + " règle(s) stockée(s)");
+    bits.push(t("meta.newFacts", data.new_facts.length));
+    bits.push(t("meta.closure", data.closure_statements));
+    if (data.rules_in_closure) bits.push(t("meta.storedRules", data.rules_in_closure));
     bits.push(data.elapsed_ms + " ms");
-    if (data.cached) bits.push("cache");
+    if (data.cached) bits.push(t("meta.cache"));
     inferMeta.textContent = bits.join(" · ");
 
     if (data.timeout) {
       parts.push(`<p class="banner banner-timeout">⏱ ${
         esc((data.errors || [])[0] && (data.errors[0].message) || "timeout")
-      } — le raisonnement a été interrompu, la page reste utilisable.</p>`);
+      }${t("infer.timeoutTail")}</p>`);
     }
     if (data.inconsistent) {
-      parts.push(`<p class="banner banner-error">⚠ <b>Incohérent</b> : la clôture ` +
-        `contient la constante <code>log:false</code> (une règle aboutit à une ` +
-        `contradiction).</p>`);
+      parts.push(`<p class="banner banner-error">${t("infer.inconsistent")}</p>`);
     }
     if (data.new_facts.length) {
-      parts.push(`<p class="muted">Nouveaux faits (absents des données d'origine) :</p>` +
+      parts.push(`<p class="muted">${t("infer.newFactsTitle")}</p>` +
         `<ul class="new-facts">` +
-        data.new_facts.map((t) => `<li>${fmtTriple(t)}</li>`).join("") +
+        data.new_facts.map((f) => `<li>${fmtTriple(f)}</li>`).join("") +
         `</ul>`);
     } else if (!data.timeout) {
-      parts.push(`<p class="muted">Aucun nouveau fait : la clôture est identique ` +
-        `aux données (les règles ne s'appliquent pas, ou ont déjà convergé).</p>`);
+      parts.push(`<p class="muted">${t("infer.noNewFacts")}</p>`);
     }
   }
-  inferOutput.innerHTML = parts.join("") || `<p class="muted">(vide)</p>`;
-  switchTab("infer");
+  inferOutput.innerHTML = parts.join("") || `<p class="muted">${t("empty")}</p>`;
+  if (tab) switchTab("infer");
 }
 
 let inferBusy = false;
@@ -540,9 +556,8 @@ async function doInfer() {
   inferBusy = true;
   const btn = document.getElementById("btn-infer");
   btn.disabled = true;
-  btn.textContent = "raisonnement…";
-  inferOutput.innerHTML = `<p class="muted">Raisonnement en cours… ` +
-    `(une règle non convergente est interrompue au timeout).</p>`;
+  btn.textContent = t("btn.reasoning");
+  inferOutput.innerHTML = `<p class="muted">${t("infer.busy")}</p>`;
   const body = {
     kb: editorView.state.doc.toString(),
     rules: rulesView.state.doc.toString(),
@@ -569,11 +584,11 @@ async function doInfer() {
     }
     refreshGraph();
   } catch (e) {
-    inferOutput.innerHTML = `<p class="error">erreur réseau : ${esc(String(e))}</p>`;
+    inferOutput.innerHTML = `<p class="error">${t("status.networkError", esc(String(e)))}</p>`;
   } finally {
     inferBusy = false;
     btn.disabled = false;
-    btn.textContent = "Raisonner";
+    btn.textContent = t("bar.infer");
   }
 }
 
@@ -590,75 +605,74 @@ const queryOutput = document.getElementById("query-output");
 // est fourni, les lignes qui y figurent sont surlignées (diff
 // avant/après raisonnement).
 function queryTable(variables, rows, newRows) {
-  if (!rows.length) return `<p class="muted">(0 ligne)</p>`;
+  if (!rows.length) return `<p class="muted">${t("query.noRows")}</p>`;
   const head = "<tr>" + variables.map((v) => `<th>?${esc(v)}</th>`).join("") + "</tr>";
   const newSet = new Set((newRows || []).map((r) => r.join("\u0000")));
   const body = rows.map((r) => {
     const isNew = newSet.has(r.join("\u0000"));
     return `<tr class="${isNew ? "row-new" : ""}"` +
-      (isNew ? ` title="ligne nouvelle : produite par le raisonnement"` : "") +
+      (isNew ? ` title="${esc(t("query.rowNew"))}"` : "") +
       `>` + r.map((c) => `<td>${esc(c)}</td>`).join("") + "</tr>";
   }).join("");
   return `<table class="query-table"><thead>${head}</thead><tbody>${body}</tbody></table>`;
 }
 
-const askText = (v) => (v ? "vrai" : "faux");
+const askText = (v) => t(v ? "ask.true" : "ask.false");
 
-function renderQuery(data) {
+function renderQuery(data, tab = true) {
+  lastRender.query = data;
   const parts = [];
 
   if (!data.ok && !data.timeout) {
     // erreurs (taguées par éditeur : kb / rules / query)
-    const label = { kb: "données", rules: "règles", query: "requête" };
     const items = (data.errors || []).map((er) =>
-      `<li class="error">${label[er.doc] || er.doc} — ligne ${er.line}, ` +
-      `col. ${er.column} : ${esc(er.message)}</li>`
+      `<li class="error">${docLabel(er.doc)} — ` +
+      `${t("parse.errorLine", er.line, er.column, esc(er.message))}</li>`
     ).join("");
     parts.push(`<ul class="errors">${items}</ul>`);
     queryMeta.textContent = "";
   } else {
     const bits = [];
     if (data.query_type === "AskQuery") {
-      bits.push("ASK : " + askText(data.ask_raw));
-      if (data.rows_reasoned) bits.push("après raisonnement : " + askText(data.ask_reasoned));
+      bits.push(t("query.metaAsk", askText(data.ask_raw)));
+      if (data.rows_reasoned) bits.push(t("query.metaAskReasoned", askText(data.ask_reasoned)));
     } else {
-      bits.push(data.rows_raw.length + " ligne(s) sur les données brutes");
+      bits.push(t("query.rowsRaw", data.rows_raw.length));
       if (data.rows_reasoned) bits.push(
-        data.rows_reasoned.length + " ligne(s) après raisonnement, dont " +
-        data.new_rows.length + " nouvelle(s)");
+        t("query.rowsReasoned", data.rows_reasoned.length, data.new_rows.length));
     }
-    if (data.closure_statements != null) bits.push(data.closure_statements + " énoncé(s) dans la clôture");
+    if (data.closure_statements != null) bits.push(t("meta.closure", data.closure_statements));
     bits.push(data.elapsed_ms + " ms");
-    if (data.cached) bits.push("cache");
+    if (data.cached) bits.push(t("meta.cache"));
     queryMeta.textContent = bits.join(" · ");
 
     if (data.timeout) {
       parts.push(`<p class="banner banner-timeout">⏱ ${
         esc((data.errors || [])[0] && (data.errors[0].message) || "timeout")
-      } — la clôture a été interrompue ; seuls les résultats bruts sont affichés.</p>`);
+      }${t("query.timeoutTail")}</p>`);
     }
     if (data.query_type === "AskQuery") {
       parts.push(`<p class="banner ${data.ask_raw ? "banner-ok" : "banner-muted"}">` +
-        `ASK sur les données brutes : <b>${askText(data.ask_raw)}</b></p>`);
+        t("query.askRaw", askText(data.ask_raw)) + `</p>`);
       if (data.rows_reasoned) {
         parts.push(`<p class="banner ${data.ask_reasoned ? "banner-ok" : "banner-muted"}">` +
-          `ASK après raisonnement : <b>${askText(data.ask_reasoned)}</b>` +
+          t("query.askReasoned", askText(data.ask_reasoned)) +
           (data.ask_reasoned !== data.ask_raw
-            ? ` <span class="muted">(le raisonnement a changé la réponse)</span>` : "") +
+            ? t("query.askChanged") : "") +
           `</p>`);
       }
     } else if (!data.rows_reasoned) {
-      parts.push(`<h3>Résultats (données brutes)</h3>` +
+      parts.push(`<h3>${t("query.resultsRaw")}</h3>` +
         queryTable(data.variables, data.rows_raw));
     } else {
-      parts.push(`<h3>Données brutes</h3>` +
+      parts.push(`<h3>${t("query.rawData")}</h3>` +
         queryTable(data.variables, data.rows_raw));
-      parts.push(`<h3>Après raisonnement <span class="muted">(lignes nouvelles surlignées)</span></h3>` +
+      parts.push(`<h3>${t("query.afterReasoning")} ${t("query.newRowsHl")}</h3>` +
         queryTable(data.variables, data.rows_reasoned, data.new_rows));
     }
   }
-  queryOutput.innerHTML = parts.join("") || `<p class="muted">(vide)</p>`;
-  switchTab("query");
+  queryOutput.innerHTML = parts.join("") || `<p class="muted">${t("empty")}</p>`;
+  if (tab) switchTab("query");
 }
 
 let queryBusy = false;
@@ -668,12 +682,10 @@ async function doQuery() {
   queryBusy = true;
   const btn = document.getElementById("btn-query");
   btn.disabled = true;
-  btn.textContent = "requête…";
+  btn.textContent = t("btn.querying");
   const reason = document.getElementById("query-reason").checked;
-  queryOutput.innerHTML = `<p class="muted">Requête en cours…` +
-    (reason
-      ? ` (clôture d'abord — une règle non convergente est interrompue au timeout).</p>`
-      : `.</p>`);
+  queryOutput.innerHTML = `<p class="muted">${t("query.busy")}` +
+    (reason ? t("query.busyReason") : `</p>`);
   // Les options de raisonnement (mode, règles stockées, timeout) sont
   // celles de la barre commune — identiques pour « Raisonner » et pour
   // « Interroger » avec raisonnement.
@@ -704,11 +716,11 @@ async function doQuery() {
       refreshGraph();
     }
   } catch (e) {
-    queryOutput.innerHTML = `<p class="error">erreur réseau : ${esc(String(e))}</p>`;
+    queryOutput.innerHTML = `<p class="error">${t("status.networkError", esc(String(e)))}</p>`;
   } finally {
     queryBusy = false;
     btn.disabled = false;
-    btn.textContent = "Interroger";
+    btn.textContent = t("bar.query");
   }
 }
 
@@ -722,11 +734,6 @@ const entailMeta = document.getElementById("entail-meta");
 const entailOutput = document.getElementById("entail-output");
 const proofMeta = document.getElementById("proof-meta");
 const proofOutput = document.getElementById("proof-output");
-
-// Libellés des éditeurs taguant les erreurs (kb / rules / query /
-// concl / proof).
-const DOC_LABEL = { kb: "données", rules: "règles", query: "requête",
-                    concl: "conclusion", proof: "preuve" };
 
 // Les options de raisonnement (mode, timeout) sont celles de la barre
 // commune — identiques pour « Raisonner », « Interroger » et les tests
@@ -742,7 +749,7 @@ function reasoningOptions() {
 // justification (« [by …] »).
 function stepsList(steps) {
   if (!steps.length) return "";
-  return `<details class="proof-steps"><summary>Étapes de dérivation (${steps.length})</summary>
+  return `<details class="proof-steps"><summary>${t("check.stepsSummary", steps.length)}</summary>
     <ol class="proof-steps-list">` +
     steps.map((s) =>
       `<li><code>${esc(s.statement || "…")}</code>` +
@@ -751,39 +758,36 @@ function stepsList(steps) {
     `</ol></details>`;
 }
 
-function renderEntail(data) {
+function renderEntail(data, tab = true) {
+  lastRender.entail = data;
   const parts = [];
   if (!data.ok && !data.timeout) {
     const items = (data.errors || []).map((er) =>
-      `<li class="error">${DOC_LABEL[er.doc] || er.doc} — ligne ${er.line}, ` +
-      `col. ${er.column} : ${esc(er.message)}</li>`).join("");
+      `<li class="error">${docLabel(er.doc)} — ` +
+      `${t("parse.errorLine", er.line, er.column, esc(er.message))}</li>`).join("");
     parts.push(`<ul class="errors">${items}</ul>`);
     entailMeta.textContent = "";
   } else {
     const bits = [];
-    bits.push(data.closure_statements + " énoncé(s) dans la clôture");
+    bits.push(t("meta.closure", data.closure_statements));
     bits.push(data.elapsed_ms + " ms");
-    if (data.cached) bits.push("cache");
+    if (data.cached) bits.push(t("meta.cache"));
     entailMeta.textContent = bits.join(" · ");
     if (data.timeout) {
       parts.push(`<p class="banner banner-timeout">⏱ ${
         esc((data.errors || [])[0] && data.errors[0].message || "timeout")
-      } — le raisonnement a été interrompu ; la conclusion n'a pas pu être testée.</p>`);
+      }${t("entail.timeoutTail")}</p>`);
     } else if (data.entails) {
-      parts.push(`<p class="banner banner-ok">✔ <b>Oui</b> : la clôture ` +
-        `(données + règles appliquées) <b>entraîne</b> la conclusion.</p>`);
+      parts.push(`<p class="banner banner-ok">${t("entail.yes")}</p>`);
     } else {
-      parts.push(`<p class="banner banner-muted">✘ <b>Non</b> : la clôture ne ` +
-        `contient pas la conclusion — aucune dérivaison ne la produit.</p>`);
+      parts.push(`<p class="banner banner-muted">${t("entail.no")}</p>`);
     }
     if (data.inconsistent && data.entails) {
-      parts.push(`<p class="banner banner-error">⚠ La clôture est <b>incohérente</b> ` +
-        `(<code>log:false</code>) : par explosion, <i>toute</i> conclusion y est ` +
-        `« entraînée » — le oui ci-dessus n'a pas de valeur.</p>`);
+      parts.push(`<p class="banner banner-error">${t("entail.inconsistent")}</p>`);
     }
   }
-  entailOutput.innerHTML = parts.join("") || `<p class="muted">(vide)</p>`;
-  switchTab("entail");
+  entailOutput.innerHTML = parts.join("") || `<p class="muted">${t("empty")}</p>`;
+  if (tab) switchTab("entail");
 }
 
 let entailBusy = false;
@@ -793,9 +797,8 @@ async function doEntail() {
   entailBusy = true;
   const btn = document.getElementById("btn-entail");
   btn.disabled = true;
-  btn.textContent = "test…";
-  entailOutput.innerHTML = `<p class="muted">Entraînement en cours… ` +
-    `(clôture d'abord — une règle non convergente est interrompue au timeout).</p>`;
+  btn.textContent = t("btn.testing");
+  entailOutput.innerHTML = `<p class="muted">${t("entail.busy")}</p>`;
   const opts = reasoningOptions();
   try {
     const resp = await fetch("/api/entail", {
@@ -811,45 +814,48 @@ async function doEntail() {
     });
     renderEntail(await resp.json());
   } catch (e) {
-    entailOutput.innerHTML = `<p class="error">erreur réseau : ${esc(String(e))}</p>`;
+    entailOutput.innerHTML = `<p class="error">${t("status.networkError", esc(String(e)))}</p>`;
   } finally {
     entailBusy = false;
     btn.disabled = false;
-    btn.textContent = "Entraîne ?";
+    btn.textContent = t("bar.entail");
   }
 }
 
 document.getElementById("btn-entail").addEventListener("click", doEntail);
 
-function renderProve(data) {
+function renderProve(data, tab = true) {
+  lastRender.prove = data;
   const parts = [];
   if (!data.ok && !data.timeout) {
     const items = (data.errors || []).map((er) =>
-      `<li class="error">${DOC_LABEL[er.doc] || er.doc} — ligne ${er.line}, ` +
-      `col. ${er.column} : ${esc(er.message)}</li>`).join("");
+      `<li class="error">${docLabel(er.doc)} — ` +
+      `${t("parse.errorLine", er.line, er.column, esc(er.message))}</li>`).join("");
     parts.push(`<ul class="errors">${items}</ul>`);
     proofMeta.textContent = "";
   } else if (data.timeout) {
     parts.push(`<p class="banner banner-timeout">⏱ ${
       esc((data.errors || [])[0] && data.errors[0].message || "timeout")
-    } — la preuve n'a pas pu être générée.</p>`);
+    }${t("prove.timeoutTail")}</p>`);
     proofMeta.textContent = "";
   } else {
-    const bits = [data.closure_statements + " énoncé(s) dans la clôture",
+    const bits = [t("meta.closure", data.closure_statements),
                   data.elapsed_ms + " ms"];
-    if (data.cached) bits.push("cache");
+    if (data.cached) bits.push(t("meta.cache"));
     proofMeta.textContent = bits.join(" · ");
-    parts.push(`<p class="banner banner-ok">✔ Preuve générée : la clôture ` +
-      `(données + règles) est la formule prouvée. Elle est dans l'onglet ` +
-      `<b>Preuve</b> — <b>altérez-la à la main</b> (un prédicat, une étape, ` +
-      `une source…), puis cliquez sur « Vérifier la preuve ».</p>`);
-    showProofTab("proof");
-    proofView.dispatch({
-      changes: { from: 0, to: proofView.state.doc.length, insert: data.proof },
-    });
+    parts.push(`<p class="banner banner-ok">${t("prove.generated")}</p>`);
+    // La preuve est mise dans l'éditeur (uniquement au rendu « frais » :
+    // un re-rendu à changement de langue n'écrase PAS une preuve
+    // altérée à la main).
+    if (tab) {
+      showProofTab("proof");
+      proofView.dispatch({
+        changes: { from: 0, to: proofView.state.doc.length, insert: data.proof },
+      });
+    }
   }
-  proofOutput.innerHTML = parts.join("") || `<p class="muted">(vide)</p>`;
-  switchTab("proof");
+  proofOutput.innerHTML = parts.join("") || `<p class="muted">${t("empty")}</p>`;
+  if (tab) switchTab("proof");
 }
 
 let whyBusy = false;
@@ -859,9 +865,8 @@ async function doWhy() {
   whyBusy = true;
   const btn = document.getElementById("btn-why");
   btn.disabled = true;
-  btn.textContent = "génération…";
-  proofOutput.innerHTML = `<p class="muted">Génération de la preuve… ` +
-    `(clôture d'abord — une règle non convergente est interrompue au timeout).</p>`;
+  btn.textContent = t("btn.generating");
+  proofOutput.innerHTML = `<p class="muted">${t("prove.busy")}</p>`;
   const opts = reasoningOptions();
   try {
     const resp = await fetch("/api/prove", {
@@ -876,17 +881,18 @@ async function doWhy() {
     });
     renderProve(await resp.json());
   } catch (e) {
-    proofOutput.innerHTML = `<p class="error">erreur réseau : ${esc(String(e))}</p>`;
+    proofOutput.innerHTML = `<p class="error">${t("status.networkError", esc(String(e)))}</p>`;
   } finally {
     whyBusy = false;
     btn.disabled = false;
-    btn.textContent = "Pourquoi ?";
+    btn.textContent = t("bar.why");
   }
 }
 
 document.getElementById("btn-why").addEventListener("click", doWhy);
 
-function renderCheck(data) {
+function renderCheck(data, tab = true) {
+  lastRender.check = data;
   const parts = [];
   if (!data.ok) {
     const items = (data.errors || []).map((er) =>
@@ -895,27 +901,23 @@ function renderCheck(data) {
     proofMeta.textContent = "";
   } else {
     const bits = [];
-    bits.push(data.steps.length + " étape(s) de dérivation");
+    bits.push(t("check.stepsMeta", data.steps.length));
     bits.push(data.elapsed_ms + " ms");
-    if (data.cached) bits.push("cache");
+    if (data.cached) bits.push(t("meta.cache"));
     proofMeta.textContent = bits.join(" · ");
     if (data.valid) {
-      parts.push(`<p class="banner banner-ok">✔ <b>Preuve valide</b> : la ` +
-        `dérivation est re-jouée sans erreur — la formule prouvée suit bien ` +
-        `des sources, par les règles.</p>`);
+      parts.push(`<p class="banner banner-ok">${t("check.valid")}</p>`);
     } else if (data.valid === false) {
-      parts.push(`<p class="banner banner-error">✘ <b>Preuve invalide</b> : ` +
-        `la dérivation ne se re-joue pas. Raison : ` +
-        `<code>${esc(data.reason || "inconnue")}</code></p>`);
+      parts.push(`<p class="banner banner-error">${
+        t("check.invalid", esc(data.reason || t("check.invalidReason")))}</p>`);
     }
     if (data.valid === false && data.steps.length) {
-      parts.push(`<p class="muted">Étapes (déroulées avant l'échec — en cas ` +
-        `d'altération, c'est là qu'on voit le point de rupture) :</p>`);
+      parts.push(`<p class="muted">${t("check.stepsIntro")}</p>`);
     }
   }
   parts.push(stepsList(data.steps));
-  proofOutput.innerHTML = parts.join("") || `<p class="muted">(vide)</p>`;
-  switchTab("proof");
+  proofOutput.innerHTML = parts.join("") || `<p class="muted">${t("empty")}</p>`;
+  if (tab) switchTab("proof");
 }
 
 let checkBusy = false;
@@ -925,9 +927,8 @@ async function doCheck() {
   checkBusy = true;
   const btn = document.getElementById("btn-check");
   btn.disabled = true;
-  btn.textContent = "vérification…";
-  proofOutput.innerHTML = `<p class="muted">Vérification en cours… ` +
-    `(check rejoue la dérivation dans un processus dédié).</p>`;
+  btn.textContent = t("btn.checking");
+  proofOutput.innerHTML = `<p class="muted">${t("check.busy")}</p>`;
   try {
     const resp = await fetch("/api/check", {
       method: "POST",
@@ -936,11 +937,11 @@ async function doCheck() {
     });
     renderCheck(await resp.json());
   } catch (e) {
-    proofOutput.innerHTML = `<p class="error">erreur réseau : ${esc(String(e))}</p>`;
+    proofOutput.innerHTML = `<p class="error">${t("status.networkError", esc(String(e)))}</p>`;
   } finally {
     checkBusy = false;
     btn.disabled = false;
-    btn.textContent = "Vérifier la preuve";
+    btn.textContent = t("bar.check");
   }
 }
 
@@ -972,7 +973,7 @@ async function loadExercisesList() {
       const opt = document.createElement("option");
       opt.value = ex.name;
       opt.textContent = ex.title;
-      opt.title = ex.title + " (" + ex.files + " fichier(s) .n3)";
+      opt.title = t("exercise.opt", ex.title, ex.files);
       exerciseSelect.appendChild(opt);
     }
   } catch {
@@ -992,8 +993,8 @@ async function doLoadExercise() {
     const resp = await fetch("/api/exercise?name=" + encodeURIComponent(name));
     const data = await resp.json();
     if (!data.ok) {
-      const msg = (data.errors || [{}])[0].message || "exercice illisible";
-      window.alert("Impossible de charger l'exercice : " + msg);
+      const msg = (data.errors || [{}])[0].message || t("exercise.unreadable");
+      window.alert(t("exercise.cannotLoad", msg));
       return;
     }
     // P9 : contexte de l'exercice pour le prompt de génération
@@ -1017,7 +1018,7 @@ async function doLoadExercise() {
     if (data.enonce_html) {
       enonceText.innerHTML = data.enonce_html;
     } else {
-      enonceText.textContent = data.enonce || "(énoncé vide)";
+      enonceText.textContent = data.enonce || t("exercise.emptyEnonce");
     }
     enoncePanel.hidden = false;
     enoncePanel.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -1026,10 +1027,11 @@ async function doLoadExercise() {
     // Le graphe affiché montre l'ancien exercice : rafraîchir.
     refreshGraph();
   } catch (e) {
-    window.alert("Erreur réseau lors du chargement : " + String(e));
+    window.alert(t("exercise.loadError", String(e)));
   } finally {
     exerciseBusy = false;
     btn.disabled = false;
+    btn.textContent = t("bar.load");
   }
 }
 
@@ -1056,11 +1058,14 @@ const iaOutput = document.getElementById("ia-output");
 let iaBusy = false;
 let loadedExercise = null;   // nom de l'exercice chargé (contexte du prompt)
 let currentEnonce = "";      // énoncé brut (Markdown) de l'exercice chargé
+let iaBannerNote = null;     // note du modèle (re-localisable à changement
+                             // de langue sans refaire la génération)
 
 function showIaBanner(note) {
-  iaBannerText.textContent = "⚠ Données générées par IA" +
+  iaBannerNote = note || null;
+  iaBannerText.textContent = t("ia.bannerPrefix") +
     (note ? " — " + note : "") +
-    " — à vérifier avant raisonnement / interrogation.";
+    t("ia.bannerSuffix");
   iaBanner.hidden = false;
 }
 
@@ -1070,30 +1075,31 @@ function hideIaBanner() {
 
 document.getElementById("ia-banner-close").addEventListener("click", hideIaBanner);
 
-// Le quota de séance (backend) pilote l'état du bouton.
+// Le quota de séance (backend) pilote l'état du bouton. Les messages
+// du serveur (`reason`) sont localisés : le front envoie la langue
+// courante (le backend les génère dans cette langue).
 function setIaButton(s) {
   const btn = document.getElementById("btn-ia");
   const q = s.quota || {};
-  const quotaText = "quota du jour : " +
-    (q.requests_left != null ? q.requests_left : "?") +
-    " requête(s), " +
-    (q.tokens_left != null ? q.tokens_left : "?") + " tokens";
+  const quotaText = t("ia.quota",
+    q.requests_left != null ? q.requests_left : "?",
+    q.tokens_left != null ? q.tokens_left : "?");
   if (!s.enabled || s.reason) {
     btn.disabled = true;
-    btn.title = s.reason || "IA non configurée";
+    btn.title = s.reason || t("ia.unconfigured");
     iaQuota.textContent = s.reason ? quotaText + " — " + s.reason : "";
     iaQuota.className = s.reason ? "ia-quota error" : "ia-quota";
     return;
   }
   btn.disabled = false;
-  btn.title = "Générer des données N3 réalistes (domaine de l'exercice chargé) et les injecter dans l'éditeur « données » — contrôlées, à vérifier";
+  btn.title = t("ia.btnTitle");
   iaQuota.textContent = quotaText;
   iaQuota.className = "ia-quota";
 }
 
 async function loadIaStatus() {
   try {
-    const resp = await fetch("/api/ia/status");
+    const resp = await fetch("/api/ia/status?lang=" + i18nLang());
     const s = await resp.json();
     setIaButton(s);
   } catch {
@@ -1101,36 +1107,45 @@ async function loadIaStatus() {
   }
 }
 
-function renderIa(data) {
+// Libellés des contrôles (c.name : clés stables du backend).
+const CTRL_KEY = { parse: "ia.ctrlParse",
+                   coherence: "ia.ctrlCoherence",
+                   plausibility: "ia.ctrlPlausibility",
+                   // noms historiques (français) — robustesse
+                   "cohérence": "ia.ctrlCoherence",
+                   "plausibilité": "ia.ctrlPlausibility" };
+
+function renderIa(data, tab = true) {
+  lastRender.ia = data;
   iaMeta.textContent = [
-    data.model ? "modèle : " + data.model : "",
-    data.attempts ? "tentative " + data.attempts : "",
-    data.tokens ? data.tokens + " tokens" : "",
-    data.elapsed_ms ? (Math.round(data.elapsed_ms / 100) / 10) + " s" : "",
+    data.model ? t("ia.model", data.model) : "",
+    data.attempts ? t("ia.attempt", data.attempts) : "",
+    data.tokens ? t("ia.tokens", data.tokens) : "",
+    data.elapsed_ms ? t("ia.elapsed", Math.round(data.elapsed_ms / 100) / 10) : "",
   ].filter(Boolean).join(" · ");
   const parts = [];
   if (data.ok) {
-    parts.push(`<p class="ok">✓ Génération acceptée (tentative ${data.attempts}) — les données sont dans l'éditeur « données ».</p>`);
+    parts.push(`<p class="ok">${t("ia.accepted", data.attempts)}</p>`);
     if (data.note) parts.push(`<p class="muted">${esc(data.note)}</p>`);
     const rows = (data.controls || []).map((c) => {
       let detail = "";
-      if (c.warning) detail = " (avertissement : " + esc(c.warning) + ")";
-      else if (c.name === "parse" && c.statements != null) detail = " (" + c.statements + " faits)";
-      else if (c.name === "cohérence" && c.new_facts != null) detail = " (" + c.new_facts + " faits inférés)";
-      else if (c.name === "plausibilité") detail = " (" + c.facts + " faits, " + c.entities + " entités)";
+      if (c.warning) detail = " " + t("ia.warning", esc(c.warning));
+      else if (c.name === "parse" && c.statements != null) detail = " " + t("ia.parseFacts", c.statements);
+      else if ((c.name === "coherence" || c.name === "cohérence") && c.new_facts != null) detail = " " + t("ia.inferredFacts", c.new_facts);
+      else if (c.name === "plausibility" || c.name === "plausibilité") detail = " " + t("ia.plausibility", c.facts, c.entities);
       else if (c.skipped) detail = " (" + esc(c.skipped) + ")";
-      return `<li class="${c.ok ? "ok" : "error"}">${esc(c.name)} : ${c.ok ? "✓" : "✗"}${detail}</li>`;
+      return `<li class="${c.ok ? "ok" : "error"}">${t(CTRL_KEY[c.name] || c.name)} : ${c.ok ? "✓" : "✗"}${detail}</li>`;
     }).join("");
     parts.push(`<ul>${rows}</ul>`);
-    parts.push(`<p class="muted">Les données générées sont <strong>dans l'éditeur « données »</strong> — lisez-les, corrigez-les, supprimez-les. Elles ne sont pas vérifiées par un humain : contrôlez les valeurs (et les seuils) par rapport à l'énoncé avant de raisonner ou d'interroger.</p>`);
+    parts.push(`<p class="muted">${t("ia.acceptedNote")}</p>`);
   } else {
     parts.push(`<p class="error">✗ ${esc(data.error)}</p>`);
     const rows = (data.controls || []).filter((c) => !c.ok).map((c) =>
-      `<li class="error">${esc(c.name)} : ${esc(c.error || "")}</li>`).join("");
+      `<li class="error">${t(CTRL_KEY[c.name] || c.name)} : ${esc(c.error || "")}</li>`).join("");
     if (rows) parts.push(`<ul>${rows}</ul>`);
   }
-  iaOutput.innerHTML = parts.join("") || `<p class="muted">(vide)</p>`;
-  switchTab("ia");
+  iaOutput.innerHTML = parts.join("") || `<p class="muted">${t("empty")}</p>`;
+  if (tab) switchTab("ia");
 }
 
 async function doIaGenerate() {
@@ -1139,8 +1154,8 @@ async function doIaGenerate() {
   const btn = document.getElementById("btn-ia");
   btn.disabled = true;
   const prevLabel = btn.textContent;
-  btn.textContent = "génération…";
-  iaOutput.innerHTML = `<p class="muted">Génération en cours… (quelques secondes — la réponse est contrôlée : parse, cohérence avec les règles, plausibilité ; en cas d'échec, régénération bornée, 3 tentatives au maximum).</p>`;
+  btn.textContent = t("ia.busyBtn");
+  iaOutput.innerHTML = `<p class="muted">${t("ia.busy")}</p>`;
   switchTab("ia");
   const body = {
     enonce: currentEnonce,
@@ -1150,6 +1165,7 @@ async function doIaGenerate() {
     entities: parseInt(document.getElementById("ia-entities").value, 10) || 10,
     exercise: loadedExercise,
     timeout: 120,
+    lang: i18nLang(),   // messages de l'IA (erreurs, contrôles) localisés
   };
   try {
     const resp = await fetch("/api/ia/generate", {
@@ -1167,7 +1183,7 @@ async function doIaGenerate() {
       showIaBanner(data.note);
     }
   } catch (e) {
-    iaOutput.innerHTML = `<p class="error">erreur réseau : ${esc(String(e))}</p>`;
+    iaOutput.innerHTML = `<p class="error">${t("status.networkError", esc(String(e)))}</p>`;
   } finally {
     iaBusy = false;
     btn.textContent = prevLabel;
@@ -1262,14 +1278,32 @@ function positionBadges() {
   }
 }
 
+// Texte du méta-graphe + message de troncature (re-localisables au
+// changement de langue sans reconstruire le réseau vis — la vue de
+// l'utilisateur, zoom/pan, est préservée).
+function updateGraphMeta(data) {
+  lastRender.graph = data;
+  if (!data.ok) return;
+  graphMeta.textContent = "— " + t("graph.statements", data.statement_count) +
+    " · " + t("graph.nodes", data.nodes.length) +
+    " · " + t("graph.edges", data.edges.length) +
+    (data.truncated ? t("graph.truncated") : "") +
+    ` · ${data.elapsed_ms} ms` +
+    (data.cached ? " · " + t("meta.cache") : "");
+  graphOutput.innerHTML = data.truncated
+    ? `<p class="muted">${t("graph.truncatedMsg", data.statement_count)}</p>`
+    : "";
+}
+
 function renderGraph(data) {
   destroyGraph();
   graphAttrs = (data.ok && data.attrs) || {};
   if (!data.ok) {
+    lastRender.graph = data;
     graphCanvas.hidden = true;
     graphMeta.textContent = "";
     const msg = (data.errors || [{}])
-      .map((e) => e.message).filter(Boolean).join(" ; ") || "erreur inconnue";
+      .map((e) => e.message).filter(Boolean).join(" ; ") || t("graph.unknownError");
     graphOutput.innerHTML = `<p class="error">${esc(msg)}</p>`;
     return;
   }
@@ -1311,13 +1345,7 @@ function renderGraph(data) {
   // (le wrapper évite de transmettre la référence du contexte
   // d'événement à une fonction qui ne l'utilise pas).
   graphNetwork.on("afterDrawing", () => positionBadges());
-  graphMeta.textContent = `— ${data.statement_count} énoncé(s) · ` +
-    `${data.nodes.length} nœud(s) · ${data.edges.length} arc(s)` +
-    (data.truncated ? " (tronqué)" : "") + ` · ${data.elapsed_ms} ms` +
-    (data.cached ? " · cache" : "");
-  graphOutput.innerHTML = data.truncated
-    ? `<p class="muted">Graphe tronqué (trop d'énoncés pour rester lisible) : ${data.statement_count} affichés.</p>`
-    : "";
+  updateGraphMeta(data);
 }
 
 // Récupère le graphe (POST /api/graph) — le panneau est persistant
@@ -1358,7 +1386,7 @@ async function refreshGraph() {
     renderGraph(data);
   } catch (e) {
     // le graphe reste affiché tel quel ; l'erreur réseau est signalée
-    graphOutput.innerHTML = `<p class="error">Erreur réseau : ${esc(String(e))}</p>`;
+    graphOutput.innerHTML = `<p class="error">${t("graph.networkError", esc(String(e)))}</p>`;
   } finally {
     graphBusy = false;
     if (graphRefreshPending) {
@@ -1429,6 +1457,44 @@ fetch("/api/version")
     if (el && d.version) el.textContent = d.version;
   })
   .catch(() => {});
+
+// ----------------------------------------------------------------------
+// i18n : changement de langue → re-rendu des résultats existants
+// ----------------------------------------------------------------------
+// Les chaînes statiques (entête, onglets, bannière par défaut…) sont
+// traitées par i18n.js (attributs data-i18n). Ici, on re-rend les
+// contenus DYNAMIQUES (dernier état de chaque action) dans la nouvelle
+// langue — sans re-fetch, sans forcer d'onglet, sans reconstruire le
+// graphe (la vue de l'utilisateur est préservée), sans ré-écrire la
+// preuve (une altération manuelle n'est pas écrasée).
+function reRenderAll() {
+  if (lastRender.parse) renderResults(lastRender.parse.data, lastRender.parse.which, false);
+  if (lastRender.infer) renderInfer(lastRender.infer, false);
+  if (lastRender.query) renderQuery(lastRender.query, false);
+  if (lastRender.entail) renderEntail(lastRender.entail, false);
+  if (lastRender.prove) renderProve(lastRender.prove, false);
+  if (lastRender.check) renderCheck(lastRender.check, false);
+  if (lastRender.ia) renderIa(lastRender.ia, false);
+  if (lastRender.graph) updateGraphMeta(lastRender.graph);
+  if (lastRender.exportFormat) {
+    exportFormat.textContent = "→ " + EXPORT_LABEL[lastRender.exportFormat];
+  }
+  if (!iaBanner.hidden) showIaBanner(iaBannerNote);
+  // Boutons pilotés par JS : libellé localisé par défaut (seulement
+  // si l'action n'est pas en cours — un libellé « … » est en place).
+  for (const [id, key] of [
+    ["btn-infer", "bar.infer"], ["btn-query", "bar.query"],
+    ["btn-entail", "bar.entail"], ["btn-why", "bar.why"],
+    ["btn-check", "bar.check"], ["btn-load-exercise", "bar.load"],
+  ]) {
+    const btn = document.getElementById(id);
+    if (btn && !btn.disabled) btn.textContent = t(key);
+  }
+  // État du bouton IA : la raison du serveur est localisée (le front
+  // renvoie la langue courante).
+  loadIaStatus();
+}
+onLangChange(reRenderAll);
 
 // Premier parse à l'ouverture + premier rendu du graphe (P7 : il est
 // visible d'emblée, sur les données préchargées) + état du bouton

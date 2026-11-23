@@ -36,12 +36,15 @@ Endpoints (P0) :
 
 Endpoints IA générative (P9 — jamais cachés : non déterministes) :
 
-- ``GET /api/ia/status`` : état de l'IA pour le front (activée ?,
-  modèle, quota de séance restant) → :func:`cwm_lab.ia.status` ;
+- ``GET /api/ia/status?lang=fr`` : état de l'IA pour le front
+  (activée ?, modèle, quota de séance restant) → :func:`cwm_lab.ia.status` ;
+  ``lang`` (``fr`` / ``en``, défaut ``fr``) localise le message du statut ;
 - ``POST /api/ia/generate`` : body JSON ``{"enonce", "rules",
-  "base_uri", "facts", "entities", "exercise", "timeout"}`` →
+  "base_uri", "facts", "entities", "exercise", "timeout", "lang"}`` →
   :func:`cwm_lab.ia.generate` (prompt → proxy → contrôles parse /
-  cohérence / plausibilité → régénération bornée).
+  cohérence / plausibilité → régénération bornée) ; ``lang``
+  (``fr`` / ``en``, défaut ``fr``) localise les messages de génération
+  (le prompt du modèle reste en français).
 
 Endpoints d'exercices et de visualisation (P5) :
 
@@ -178,8 +181,15 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/ia/status":
             # P9 : état de l'IA (bouton activé / désactivé + quota
             # de séance restant) — lecture seule, pas de cache.
+            # i18n : ``lang`` (fr/en) — le message du statut est
+            # localisé côté backend (le front envoie sa langue).
+            params = urllib.parse.parse_qs(query_string)
+            lang = (params.get("lang") or ["fr"])[0]
+            if lang not in ia.LANGS:
+                lang = "fr"
             self._send_json(ia.status(CONFIG or {},
-                                      CACHE.disk_dir if CACHE else None))
+                                      CACHE.disk_dir if CACHE else None,
+                                      lang=lang))
             return
         if path == "/api/exercises":
             self._send_json(engine.list_exercises())
@@ -342,6 +352,12 @@ class Handler(BaseHTTPRequestHandler):
                     return max(lo, min(hi, int(req.get(key, default))))
                 except (TypeError, ValueError):
                     return default
+            # i18n : ``lang`` (fr/en) — les messages de génération
+            # sont localisés côté backend ; le prompt du modèle reste
+            # en français (calibré).
+            lang = req.get("lang") or "fr"
+            if lang not in ia.LANGS:
+                lang = "fr"
             result = ia.generate(
                 CONFIG or {},
                 enonce=req.get("enonce", "") or "",
@@ -352,6 +368,7 @@ class Handler(BaseHTTPRequestHandler):
                 exercise=req.get("exercise"),
                 timeout=req.get("timeout"),
                 cache_dir=CACHE.disk_dir if CACHE else None,
+                lang=lang,
             )
             # 429 : quota de séance épuisé (le bouton se désactive)
             statut = 429 if (not result["ok"]

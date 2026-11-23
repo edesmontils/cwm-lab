@@ -85,6 +85,116 @@ _RDF_TYPE_URI = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
 _MAX_ENONCE = 8000
 _MAX_REGLES = 6000
 
+#: Langues des messages destinés à l'interface : le front envoie
+#: ``lang`` ("fr" / "en") à :func:`status` / :func:`generate`. Le
+#: prompt du modèle et le feedback de régénération restent en
+#: français (calibrés sur les énoncés du TP) ; seules les messages
+#: affichés sont localisés.
+LANGS = ("fr", "en")
+
+MESSAGES = {
+    "fr": {
+        "quota_requests": ("quota de requêtes de la séance épuisé "
+                           "(%d/jour) — le compteur repart demain"),
+        "quota_tokens": ("quota de tokens de la séance épuisé "
+                         "(%d/jour) — le compteur repart demain"),
+        "proxy_network": ("le service d'IA est momentanément "
+                          "injoignable (réseau) — réessayez dans un "
+                          "instant"),
+        "proxy_limit": ("le service d'IA a atteint sa limite du jour "
+                        "ou est saturé — réessayez plus tard"),
+        "proxy_unavailable": ("le service d'IA est momentanément "
+                              "indisponible — réessayez dans un instant"),
+        "proxy_refused": ("le service d'IA a refusé la demande "
+                          "(erreur de configuration du serveur) — "
+                          "voir la documentation de l'installation"),
+        "proxy_unreadable": "réponse du service d'IA illisible",
+        "model_empty": "la réponse du modèle est vide — réessayez",
+        "model_truncated": ("le modèle n'a pas fini sa réponse (trop "
+                            "de données demandées ?) — réessayez "
+                            "avec moins de faits"),
+        "parse_invalid": "syntaxe N3 invalide : %s",
+        "parse_rules": ("le document contient %d énoncé(s)-règle "
+                        "(log:implies) — données seules exigées"),
+        "coh_skipped": "aucune règle existante à vérifier",
+        "coh_timeout": ("règles non convergentes (timeout) : "
+                        "cohérence non vérifiée"),
+        "coh_error": "erreur de raisonnement : %s",
+        "coh_inconsistent": ("les données générées sont incohérentes "
+                             "avec les règles existantes (log:false "
+                             "dans la clôture)"),
+        "plau_parse": "parse impossible : %s",
+        "plau_facts": "%d faits (plage demandée : %d à %d)",
+        "plau_entities": "%d entités (plage demandée : %d à %d)",
+        "plau_untyped": "%d entité(s) sans rdf:type",
+        "gen_unconfigured": ("IA non configurée : bouton indisponible "
+                             "(voir la configuration .env)"),
+        "gen_bad_url": ("IA_URL doit être https (ou http sur "
+                        "localhost) — la clé API ne transite jamais "
+                        "en clair"),
+        "gen_refused": ("génération refusée après %d tentative(s) : "
+                        "les contrôles (parse, cohérence, "
+                        "plausibilité) n'ont pas passé — réessayez, "
+                        "éventuellement avec une taille différente"),
+        "status_unconfigured": ("IA non configurée : définir %s dans "
+                                ".env (voir .env.example) — l'appli "
+                                "fonctionne sans IA"),
+    },
+    "en": {
+        "quota_requests": ("daily request quota exhausted "
+                           "(%d/day) — the counter resets tomorrow"),
+        "quota_tokens": ("daily token quota exhausted (%d/day) — "
+                         "the counter resets tomorrow"),
+        "proxy_network": ("the AI service is temporarily unreachable "
+                          "(network) — try again in a moment"),
+        "proxy_limit": ("the AI service hit its daily limit or is "
+                        "saturated — try again later"),
+        "proxy_unavailable": ("the AI service is temporarily "
+                              "unavailable — try again in a moment"),
+        "proxy_refused": ("the AI service refused the request (server "
+                          "configuration error) — see the "
+                          "installation documentation"),
+        "proxy_unreadable": "unreadable response from the AI service",
+        "model_empty": "the model returned an empty answer — try again",
+        "model_truncated": ("the model ran out of tokens (too much "
+                            "data requested?) — try again with fewer "
+                            "facts"),
+        "parse_invalid": "invalid N3 syntax: %s",
+        "parse_rules": ("the document contains %d rule statement(s) "
+                        "(log:implies) — data only expected"),
+        "coh_skipped": "no existing rule to check against",
+        "coh_timeout": ("non-convergent rules (timeout): coherence "
+                        "not verified"),
+        "coh_error": "reasoning error: %s",
+        "coh_inconsistent": ("the generated data are inconsistent "
+                             "with the existing rules (log:false in "
+                             "the closure)"),
+        "plau_parse": "cannot parse: %s",
+        "plau_facts": "%d facts (requested range: %d to %d)",
+        "plau_entities": "%d entities (requested range: %d to %d)",
+        "plau_untyped": "%d entity/ies without rdf:type",
+        "gen_unconfigured": ("AI not configured: button unavailable "
+                             "(see the .env configuration)"),
+        "gen_bad_url": ("IA_URL must be https (or http on localhost) "
+                        "— the API key never travels in the clear"),
+        "gen_refused": ("generation refused after %d attempt(s): the "
+                        "controls (parse, coherence, plausibility) "
+                        "did not pass — try again, possibly with a "
+                        "different size"),
+        "status_unconfigured": ("AI not configured: set %s in .env "
+                                "(see .env.example) — the app works "
+                                "without AI"),
+    },
+}
+
+
+def _msg(lang, key, *args):
+    """Message d'interface dans la langue ``lang`` (repli : fr, puis
+    la clé — un trou dans le tableau ne casse jamais la génération)."""
+    table = MESSAGES.get(lang) or MESSAGES["fr"]
+    s = table.get(key, MESSAGES["fr"].get(key, key))
+    return s % args if args else s
+
 
 # ----------------------------------------------------------------------
 # quota de séance (persisté avec le cache P8, réinitialisé chaque jour)
@@ -160,19 +270,18 @@ class Quota:
                 "tokens_left": max(0, self._max_tokens - tok),
             }
 
-    def available(self):
-        """``(True, None)`` ou ``(False, message de refus clair)``."""
+    def available(self, lang="fr"):
+        """``(True, None)`` ou ``(False, message de refus clair)``.
+
+        ``lang`` : langue du message d'interface (``"fr"`` / ``"en"``).
+        """
         u = self.usage()
         if u["requests_left"] <= 0:
             return (False,
-                    "quota de requêtes de la séance épuisé "
-                    "(%d/jour) — le compteur repart demain"
-                    % self._max_requests)
+                    _msg(lang, "quota_requests", self._max_requests))
         if u["tokens_left"] <= 0:
             return (False,
-                    "quota de tokens de la séance épuisé "
-                    "(%d/jour) — le compteur repart demain"
-                    % self._max_tokens)
+                    _msg(lang, "quota_tokens", self._max_tokens))
         return True, None
 
     def consume(self, tokens=0):
@@ -220,12 +329,15 @@ def _http_post(url, payload, api_key, timeout):
         return 0, str(e)
 
 
-def call_proxy(config, messages, transport=None, timeout=None):
+def call_proxy(config, messages, transport=None, timeout=None, lang="fr"):
     """Appel ``POST {ia_url}/chat/completions`` vers le proxy.
 
     ``transport`` : injectable ``(url, payload, api_key, timeout) →
     (code, corps)`` — défaut : :func:`_http_post` (les tests ne
     touchent jamais le réseau).
+
+    ``lang`` : langue des messages d'erreur d'interface
+    (``"fr"`` / ``"en"``).
 
     Renvoie ``{"content", "tokens"}`` ou ``{"error", "status"}``.
     Les messages d'erreur du proxy ne sont jamais montrés à
@@ -254,36 +366,23 @@ def call_proxy(config, messages, transport=None, timeout=None):
         if not (code == 400 and with_json):
             break
     if code == 0:
-        return {"error": "le service d'IA est momentanément injoignable "
-                         "(réseau) — réessayez dans un instant",
-                "status": 503}
+        return {"error": _msg(lang, "proxy_network"), "status": 503}
     if code == 429:
-        return {"error": "le service d'IA a atteint sa limite du jour "
-                         "ou est saturé — réessayez plus tard",
-                "status": 429}
+        return {"error": _msg(lang, "proxy_limit"), "status": 429}
     if code >= 500:
-        return {"error": "le service d'IA est momentanément indisponible "
-                         "— réessayez dans un instant",
-                "status": 503}
+        return {"error": _msg(lang, "proxy_unavailable"), "status": 503}
     if code != 200:
-        return {"error": "le service d'IA a refusé la demande "
-                         "(erreur de configuration du serveur) — "
-                         "voir la documentation de l'installation",
-                "status": 503}
+        return {"error": _msg(lang, "proxy_refused"), "status": 503}
     try:
         d = json.loads(text)
     except ValueError:
-        return {"error": "réponse du service d'IA illisible", "status": 502}
+        return {"error": _msg(lang, "proxy_unreadable"), "status": 502}
     choice = (d.get("choices") or [{}])[0]
     content = (choice.get("message") or {}).get("content", "")
     if not isinstance(content, str) or not content.strip():
-        return {"error": "la réponse du modèle est vide — réessayez",
-                "status": 502}
+        return {"error": _msg(lang, "model_empty"), "status": 502}
     if choice.get("finish_reason") == "length":
-        return {"error": "le modèle n'a pas fini sa réponse (trop de "
-                         "données demandées ?) — réessayez avec moins "
-                         "de faits",
-                "status": 502}
+        return {"error": _msg(lang, "model_truncated"), "status": 502}
     usage = d.get("usage") or {}
     tokens = int(usage.get("total_tokens")
                  or (int(usage.get("prompt_tokens", 0))
@@ -408,10 +507,12 @@ def build_messages(enonce, rules, base_uri, n_facts, n_entities,
 # contrôles a posteriori
 # ----------------------------------------------------------------------
 
-def control_parse(n3, base_uri):
+def control_parse(n3, base_uri, lang="fr"):
     """Contrôle 1 — la réponse se parse en N3, et ne contient
     **aucune règle** (données seules : un ``log:implies`` est un
-    rejet, pas un avertissement)."""
+    rejet, pas un avertissement). ``lang`` : langue du message
+    d'interface (les erreurs du moteur CWM restent en anglais
+    technique, non localisées)."""
     p = engine.parse(n3, base_uri=base_uri, language="n3")
     ok = bool(p["ok"])
     stats = p.get("stats") or {}
@@ -426,43 +527,39 @@ def control_parse(n3, base_uri):
     }
     if not p["ok"]:
         detail["errors"] = p["errors"]
-        detail["error"] = ("syntaxe N3 invalide : "
-                           + "; ".join(e.get("message", "")
-                                       for e in p["errors"][:3]))
+        detail["error"] = _msg(lang, "parse_invalid",
+                               "; ".join(e.get("message", "")
+                                         for e in p["errors"][:3]))
     elif n_rules > 0:
-        detail["error"] = ("le document contient %d énoncé(s)-règle "
-                           "(log:implies) — données seules exigées"
-                           % n_rules)
+        detail["error"] = _msg(lang, "parse_rules", n_rules)
     return detail
 
 
-def control_coherence(n3, rules, base_uri, timeout=10.0):
+def control_coherence(n3, rules, base_uri, timeout=10.0, lang="fr"):
     """Contrôle 2 — raisonnement sur KB générée + règles existantes :
     **absence de ``log:false``** (incohérence).
 
     Le timeout des règles (non convergentes) n'est PAS un rejet : la
     KB d'origine de l'exercice aurait le même timeout — c'est un
     avertissement signalé (« cohérence non vérifiée »).
+    ``lang`` : langue du message d'interface.
     """
     if not (rules or "").strip():
         return {"name": "cohérence", "ok": True,
-                "skipped": "aucune règle existante à vérifier"}
+                "skipped": _msg(lang, "coh_skipped")}
     r = engine.infer(n3, rules, base_uri=base_uri, mode="think",
                      timeout=timeout)
     if not r["ok"]:
         if r["timeout"]:
             return {"name": "cohérence", "ok": True,
-                    "warning": "règles non convergentes (timeout) : "
-                               "cohérence non vérifiée"}
+                    "warning": _msg(lang, "coh_timeout")}
         return {"name": "cohérence", "ok": False, "errors": r["errors"],
-                "error": "erreur de raisonnement : "
-                         + "; ".join(e.get("message", "")
-                                     for e in r["errors"][:3])}
+                "error": _msg(lang, "coh_error",
+                              "; ".join(e.get("message", "")
+                                        for e in r["errors"][:3]))}
     if r["inconsistent"]:
         return {"name": "cohérence", "ok": False,
-                "error": "les données générées sont incohérentes avec "
-                         "les règles existantes (log:false dans la "
-                         "clôture)"}
+                "error": _msg(lang, "coh_inconsistent")}
     return {"name": "cohérence", "ok": True,
             "new_facts": len(r["new_facts"])}
 
@@ -481,7 +578,7 @@ def _formula_terms(n3, base_uri):
     return (formula, stmts), None
 
 
-def control_plausibilite(n3, base_uri, n_facts, n_entities):
+def control_plausibilite(n3, base_uri, n_facts, n_entities, lang="fr"):
     """Contrôle 3 — plausibilité structurelle (garde) :
 
     - nombre de **faits** dans la plage ``[0,5 × N, 3 × N]`` ;
@@ -493,12 +590,13 @@ def control_plausibilite(n3, base_uri, n_facts, n_entities):
     Calculée directement sur la formule parsée : le SPARQL de CWM ne
     supporte ni agrégats (``COUNT``) ni ``MINUS``/``isIRI`` — une
     requête de garde SPARQL n'y est pas exprimable.
+    ``lang`` : langue du message d'interface.
     """
     from swap.core.term import Fragment, Symbol
     parsed, err = _formula_terms(n3, base_uri)
     if parsed is None:
         return {"name": "plausibilité", "ok": False,
-                "error": "parse impossible : %s" % err["message"]}
+                "error": _msg(lang, "plau_parse", err["message"])}
     _, stmts = parsed
     facts = len(stmts)
     entities = set()
@@ -521,13 +619,12 @@ def control_plausibilite(n3, base_uri, n_facts, n_entities):
     lo_e, hi_e = max(1, n_entities // 2), 3 * n_entities
     problems = []
     if not lo_f <= facts <= hi_f:
-        problems.append("%d faits (plage demandée : %d à %d)"
-                        % (facts, lo_f, hi_f))
+        problems.append(_msg(lang, "plau_facts", facts, lo_f, hi_f))
     if not lo_e <= len(entities) <= hi_e:
-        problems.append("%d entités (plage demandée : %d à %d)"
-                        % (len(entities), lo_e, hi_e))
+        problems.append(_msg(lang, "plau_entities",
+                             len(entities), lo_e, hi_e))
     if untyped:
-        problems.append("%d entité(s) sans rdf:type" % len(untyped))
+        problems.append(_msg(lang, "plau_untyped", len(untyped)))
     detail = {"name": "plausibilité", "ok": not problems,
               "facts": facts, "entities": len(entities),
               "untyped_subjects": len(untyped)}
@@ -542,7 +639,7 @@ def control_plausibilite(n3, base_uri, n_facts, n_entities):
 
 def generate(config, enonce="", rules="", base_uri=None, n_facts=40,
              n_entities=10, exercise=None, timeout=None, transport=None,
-             cache_dir=None):
+             cache_dir=None, lang="fr"):
     """Génère une KB N3 (prompt → proxy → contrôles → régénération).
 
     ``enonce`` / ``rules`` : énoncé et règles de l'exercice chargé
@@ -550,7 +647,9 @@ def generate(config, enonce="", rules="", base_uri=None, n_facts=40,
     domaine générique. ``n_facts`` / ``n_entities`` : la taille
     demandée (plage de tolérance ×0,5 / ×3). ``transport`` :
     transport injectable pour ``call_proxy`` (tests). ``cache_dir`` :
-    répertoire du cache P8 (persistance du quota).
+    répertoire du cache P8 (persistance du quota). ``lang`` : langue
+    des messages d'interface (le prompt du modèle reste en français,
+    calibré).
 
     Renvoie (JSON-serialisable) :
 
@@ -569,13 +668,11 @@ def generate(config, enonce="", rules="", base_uri=None, n_facts=40,
               "elapsed_ms": int((time.time() - t0) * 1000)},
              **(extra or {})))
     if not config.get("ia_api_key") or not config.get("ia_model"):
-        return out_err("IA non configurée : bouton indisponible "
-                       "(voir la configuration .env)", 0, 0,
+        return out_err(_msg(lang, "gen_unconfigured"), 0, 0,
                        {"status": 404})
     if not _url_ok(config.get("ia_url")):
-        return out_err("IA_URL doit être https (ou http sur "
-                       "localhost) — la clé API ne transite jamais "
-                       "en clair", 0, 0, {"status": 404})
+        return out_err(_msg(lang, "gen_bad_url"), 0, 0,
+                       {"status": 404})
     if base_uri is None:
         base_uri = engine.DEFAULT_BASE_URI
     n_facts = max(1, min(2000, int(n_facts)))
@@ -586,14 +683,14 @@ def generate(config, enonce="", rules="", base_uri=None, n_facts=40,
     feedback = None
     last_controls = None
     for attempt in range(1, max_attempts + 1):
-        ok, refus = quota.available()
+        ok, refus = quota.available(lang)
         if not ok:
             return out_err(refus, attempt - 1, total_tokens,
                            {"status": 429})
         messages = build_messages(enonce, rules, base_uri, n_facts,
                                   n_entities, exercise, feedback)
         res = call_proxy(config, messages, transport=transport,
-                         timeout=timeout)
+                         timeout=timeout, lang=lang)
         if "error" in res:
             # erreur de proxy / de config : pas de régénération
             # (le problème ne viendra pas de la réponse du modèle)
@@ -603,9 +700,10 @@ def generate(config, enonce="", rules="", base_uri=None, n_facts=40,
         quota.consume(res["tokens"])
         n3, note = extract_n3(res["content"])
         last_controls = [
-            control_parse(n3, base_uri),
-            control_coherence(n3, rules, base_uri),
-            control_plausibilite(n3, base_uri, n_facts, n_entities),
+            control_parse(n3, base_uri, lang),
+            control_coherence(n3, rules, base_uri, lang=lang),
+            control_plausibilite(n3, base_uri, n_facts, n_entities,
+                                 lang),
         ]
         failures = [c for c in last_controls if not c["ok"]]
         if not failures:
@@ -616,10 +714,7 @@ def generate(config, enonce="", rules="", base_uri=None, n_facts=40,
                     "elapsed_ms": int((time.time() - t0) * 1000)}
         feedback = ["- %s : %s" % (c["name"], c.get("error", ""))
                     for c in failures]
-    return out_err("génération refusée après %d tentative(s) : les "
-                   "contrôles (parse, cohérence, plausibilité) n'ont "
-                   "pas passé — réessayez, éventuellement avec une "
-                   "taille différente" % max_attempts,
+    return out_err(_msg(lang, "gen_refused", max_attempts),
                    max_attempts, total_tokens,
                    {"controls": last_controls})
 
@@ -637,10 +732,11 @@ def _mask_url(url):
         return ""
 
 
-def status(config, cache_dir=None):
+def status(config, cache_dir=None, lang="fr"):
     """État de l'IA pour le front : ``enabled``, ``model``, ``url``
     (hôte), ``reason`` (pourquoi désactivée / quota épuisé),
-    ``quota`` (restant du jour)."""
+    ``quota`` (restant du jour). ``lang`` : langue du message
+    d'interface (``"fr"`` / ``"en"``)."""
     enabled = bool(config.get("ia_api_key") and config.get("ia_model"))
     out = {"enabled": enabled,
            "model": config.get("ia_model") or "",
@@ -652,18 +748,15 @@ def status(config, cache_dir=None):
             missing.append("IA_API_KEY")
         if not config.get("ia_model"):
             missing.append("IA_MODEL")
-        out["reason"] = ("IA non configurée : définir %s dans .env "
-                         "(voir .env.example) — l'appli fonctionne "
-                         "sans IA" % " et ".join(missing))
+        out["reason"] = _msg(lang, "status_unconfigured",
+                             " et ".join(missing))
         return out
     if not _url_ok(config.get("ia_url")):
-        out["reason"] = ("IA_URL doit être https (ou http sur "
-                         "localhost) — la clé API ne transite jamais "
-                         "en clair")
+        out["reason"] = _msg(lang, "gen_bad_url")
         return out
     quota = Quota(config, cache_dir)
     out["quota"] = quota.usage()
-    ok, refus = quota.available()
+    ok, refus = quota.available(lang)
     if not ok:
         out["reason"] = refus
     return out

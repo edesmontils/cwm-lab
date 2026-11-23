@@ -778,6 +778,81 @@ recalculent), en moins de 30 s, et une génération incohérente est
   74 ressources distinctes, 60 sujets-ressources, **0 sujet sans
   `rdf:type`**.
 
+### P10 — Internationalisation de l'interface ✅ (livrée le 2026-11-23)
+
+**Objectif** : internationaliser l'application (FR par défaut, EN)
+avec un **sélecteur de langue dans la barre d'entête** — l'outil est
+pensé pour un public français mais doit pouvoir être utilisé en
+anglais (salle internationale, lecteur de la documentation
+étranger).
+
+**Direction retenue** :
+
+- **un seul module `static/i18n.js`** : deux dictionnaires (fr/en)
+  + helper `t(key, …args)` (placeholders `{1}` `{2}` …) +
+  application des chaînes **statiques** via les attributs
+  `data-i18n` (text), `data-i18n-ph` (placeholder),
+  `data-i18n-title` (infobulles), `data-i18n-aria` (aria-label) ;
+  le texte français du HTML reste le **repli** si une clé manque
+  (un trou dans le dictionnaire ne casse jamais la page) ;
+- **persistance** de la langue en `localStorage`
+  (`cwm-tp-lang`) ; `<html lang>` et le titre de page suivent la
+  langue ;
+- **sélecteur** `<select id="lang-select">` dans `#toolbar`
+  (Français / English) — même style que le sélecteur d'exercice ;
+- **chaînes dynamiques** (résultats, bannières, erreurs) : toutes
+  passées en `t()` dans `app.js` ; le dernier état de chaque rendu
+  est conservé (`lastRender`) et **re-rendu au changement de langue**
+  (événement via `onLangChange`) — sans re-fetch, sans forcer
+  l'onglet actif, **sans reconstruire le réseau vis** (seuls le
+  méta et le message de troncature sont re-localisés, la vue
+  utilisateur — zoom/pan — est préservée) et **sans ré-écrire la
+  preuve** (une altération manuelle n'est pas écrasée) ;
+- **backend localisé** : `cwm_lab/ia.py` porte une table
+  `MESSAGES = {"fr": …, "en": …}` + `_msg(lang, key, …)` — les
+  messages d'erreur de la génération (quota, proxy, contrôles,
+  statut) sont localisés côté serveur ; le front envoie sa langue
+  (`/api/ia/status?lang=`, `lang` dans le body de
+  `/api/ia/generate` ; défaut `fr`, toute autre valeur repli `fr`).
+  **Le prompt du modèle reste en français** (calibré sur les
+  énoncés du TP) ; la `note` du modèle et les messages du moteur de
+  parse CWM (anglais technique) sont du **contenu**, non localisés.
+
+**Hors périmètre (contenu, pas interface)** : les énoncés des
+exercices et leurs titres (contenu pédagogique), la note du modèle
+IA, les erreurs du parser CWM (anglais technique).
+
+**Critère d'acceptation** : la bascule FR ↔ EN dans l'entête
+retourne toute l'interface (statiques + résultats déjà affichés)
+dans la nouvelle langue, la préférence persiste au rechargement, et
+les messages de l'IA suivent la langue choisie. ✔ (vérifié en
+navigateur sur le serveur de test, en plus de 12 tests unitaires
+`test_ia` — quota/proxy/contrôles/statut/génération en EN, repli FR
+sur langue invalide, prompt inchangé)
+
+**Faits techniques établis en P10** (à réutiliser) :
+
+- **deux natures de texte, deux traitements** : l'**interface**
+  (boutons, libellés, résultats, erreurs applicatives) est
+  localisée ; le **contenu** (énoncés des exercices, réponse du
+  modèle, erreurs du moteur CWM) ne l'est pas — le prompt reste
+  français car **calibré** (la qualité de la génération P9 en
+  dépend) ;
+- **repli à trois niveaux** du côté front : langue courante → `fr`
+  → la clé elle-même ; du côté backend : langue courante → `fr` →
+  la clé — un trou dans un dictionnaire ne produit jamais un
+  `undefined` à l'écran ;
+- **re-rendu au changement de langue** : chaque rendu dynamique
+  (`renderResults`/`renderInfer`/`renderQuery`/`renderEntail`/
+  `renderProve`/`renderCheck`/`renderIa`/méta-graphe) accepte un
+  argument `tab` (défaut `true`) — le re-rendu i18n passe `false`
+  pour ne ni basculer d'onglet ni (pour la preuve) re-dispatcher le
+  texte dans l'éditeur ;
+- le sélecteur de langue est un **simple `<select>`** (2 options)
+  — pas de framework i18n, zéro dépendance, cohérent avec la
+  politique du dépôt (comme CodeMirror/vis.js vendus en local,
+  l'i18n est un petit module maison).
+
 ## 4. Risques & points de vigilance
 
 | # | Risque | Mitigation |
@@ -818,3 +893,4 @@ recalculent), en moins de 30 s, et une génération incohérente est
 | 2026-11-23 | **`cwm-lab` 0.3.0 publiée sur PyPI** — https://pypi.org/project/cwm-lab/0.3.0/ (wheel + sdist, nom `cwm-lab` libre, première publication) : les étudiants s'installent en une commande, `pip install cwm-lab` (résout `cwm>=2.9.3` sur PyPI — les deux paquets du projet y sont désormais). Parcours de validation : build local (wheel 39 fichiers — 4 modules, static/ + vendor vis/CodeMirror, 16 fichiers d'exercices, `.example`), upload TestPyPI, **installation en venv vierge depuis TestPyPI puis depuis PyPI** : serveur démarrable, `/api/version` 0.3.0, menu exercices `famille` + `recettes`, raisonnement vérifié (`log:implies` → fait inféré) |
 | 2026-11-23 | **P9 livrée** : remplissage de la base par IA générative — bouton « Remplir la base (IA) » (taille paramétrable ≈ N faits / M entités), prompt contraint (N3 **données seules** — zéro `log:implies`, domaine = énoncé + règles de l'exercice chargé sinon générique, valeurs réalistes qui déclenchent ET ne déclenchent pas les seuils, contexte entre balises `<domaine>`/`<regles>` traité comme donnée — anti-injection), appel **backend** `urllib` vers proxy API compatible OpenAI (défaut ProxyIAg institutionnel, HTTPS exigé — la clé ne transite jamais en clair ; le navigateur ne voit jamais la clé) ; **contrôles a posteriori** : parse (+ zéro règle), cohérence (`engine.infer` KB générée + règles existantes, absence de `log:false` ; timeout → avertissement, pas un rejet), plausibilité structurelle (faits/entités dans la plage ×0,5–×2, chaque entité typée) ; **régénération bornée** (3, prompt enrichi des rejets) puis signalement honnête ; **quotas de séance** (requêtes + tokens, plafonds `config.yaml`, comptés backend, **persistés avec le cache P8** — `ia_quota.json`, réinitialisés chaque jour, dégradation mémoire seule) ; texte généré **dans l'éditeur** + bannière « généré par IA, à vérifier » (masquée par toute édition) ; onglet de résultats « Génération (IA) » (contrôles, tentative, tokens, durée) ; **hors cache P8** ; absent la config → bouton désactivé avec raison explicite ; `cwm_lab/ia.py` (transport injectable), extensions `cache.py` (config `IA_URL` + quotas) et `server.py` (`GET /api/ia/status`, `POST /api/ia/generate` — 429 si quota épuisé) ; 43 tests (153 au total) dont intégration serveur (proxy fictif, réseau jamais touché) ; version 0.4.0. **Fait technique** : le SPARQL de CWM ne supporte ni agrégats (`COUNT` → « token inattendu "(" ») ni `MINUS`/`isIRI`/`BIND` → la garde de plausibilité est calculée en Python sur la formule parsée (la « garde SPARQL » de la spec n'est pas exprimable). **Ajustements de calibration** (vérification navigateur, proxy ProxyIAg réel sur `recettes`) : `max_tokens` réponse 2000 → **4000** (troncature systématique des documents à 2000), timeout proxy 60 → **120 s**, tolérance haute de plausibilité ×2 → **×3** (le modèle « complète » le domaine, ~100 faits sur `recettes` — ×2 rejetait tout) ; génération acceptée à la tentative 2 (94 faits / 22 entités, préfixes `rec:`/`ingr:`/`med:`/`math:` de l'exercice, 42 faits inférés, 0 `log:false`), ~60 s |
 | 2026-11-23 | **`cwm-lab` 0.4.0 publiée sur PyPI** — https://pypi.org/project/cwm-lab/0.4.0/ (wheel + sdist) : la P9 (génération de données par IA, bouton « Remplir la base (IA) », quotas de séance) est installable en `pip install cwm-lab`. Validation : wheel 41 entrées (`ia.py` présent, `.env` **absent** — package-data explicites), **installation en venv vierge depuis TestPyPI puis depuis PyPI** : version 0.4.0, `cwm_lab.ia.generate` importable, `GET /api/ia/status` → `enabled: false` + raison explicite (clé/modèle absents) — l'appli démarre sans IA, le reste fonctionne |
+| 2026-11-23 | **P10 livrée** : internationalisation de l'interface (FR par défaut, EN) — **sélecteur de langue dans la barre d'entête** (persistance localStorage, `<html lang>` + titre de page suivent) ; module `static/i18n.js` (dictionnaires fr/en, `t(key, …)` avec placeholders, attributs `data-i18n`/`-ph`/`-title`/`-aria` sur le HTML statique, repli trois niveaux) ; `app.js` : ~100 chaînes dynamiques passées en `t()` + **re-rendu au changement de langue** (dernier état de chaque rendu conservé, sans re-fetch, sans forcer l'onglet, sans reconstruire le réseau vis, sans écraser une preuve altérée à la main) ; **backend localisé** : `ia.py` table `MESSAGES` fr/en + `_msg()` — quota, erreurs proxy, contrôles (parse/cohérence/plausibilité), refus de génération, statut ; le front envoie `lang` (`/api/ia/status?lang=`, body `/api/ia/generate`, défaut + repli `fr`) ; **le prompt du modèle reste en français** (calibré), la note du modèle et les erreurs du parser CWM = contenu non localisé ; 12 tests (55 dans `test_ia`, 165 au total) ; version 0.5.0 |

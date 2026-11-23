@@ -561,3 +561,155 @@ class TestServerIa(unittest.TestCase):
         with self.assertRaises(urllib.error.HTTPError) as ctx:
             urllib.request.urlopen(req)
         self.assertEqual(ctx.exception.code, 400)
+
+    def test_status_lang_en(self):
+        server.CONFIG = {}
+        code, s = self._get("/api/ia/status?lang=en")
+        self.assertEqual(code, 200)
+        self.assertFalse(s["enabled"])
+        self.assertIn("not configured", s["reason"])
+
+    def test_status_lang_invalide_repli_fr(self):
+        server.CONFIG = {}
+        code, s = self._get("/api/ia/status?lang=xx")
+        self.assertEqual(code, 200)
+        self.assertIn("non configurée", s["reason"])
+
+    def test_generate_lang_en(self):
+        server.CONFIG = {}
+        code, r = self._post("/api/ia/generate",
+                             {"enonce": "x", "lang": "en"})
+        self.assertEqual(code, 200)
+        self.assertFalse(r["ok"])
+        self.assertIn("not configured", r["error"])
+
+    def test_generate_lang_invalide_repli_fr(self):
+        server.CONFIG = {}
+        code, r = self._post("/api/ia/generate",
+                             {"enonce": "x", "lang": "zz"})
+        self.assertEqual(code, 200)
+        self.assertIn("non configurée", r["error"])
+
+
+# ----------------------------------------------------------------------
+# i18n : messages localisés (fr par défaut, en à la demande)
+# ----------------------------------------------------------------------
+
+class TestIaI18n(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp(prefix="cwm-tp-ia-i18n.")
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_langs(self):
+        self.assertEqual(ia.LANGS, ("fr", "en"))
+
+    def test_msg_repli(self):
+        # langue inconnue → fr ; clé absente → la clé elle-même
+        self.assertIn("quota", ia._msg("zz", "quota_requests", 30))
+        self.assertEqual(ia._msg("fr", "cl_absente"), "cl_absente")
+
+    def test_quota_dispo_fr_et_en(self):
+        cfg = make_config(self.tmp, ia_max_requests=1)
+        q = ia.Quota(cfg, self.tmp)
+        q.consume()
+        _, refus_fr = q.available("fr")
+        _, refus_en = q.available("en")
+        self.assertIn("requêtes", refus_fr)
+        self.assertIn("request quota", refus_en)
+
+    def test_status_lang(self):
+        s_fr = ia.status({}, lang="fr")
+        s_en = ia.status({}, lang="en")
+        self.assertIn("non configurée", s_fr["reason"])
+        self.assertIn("not configured", s_en["reason"])
+        # l'URL http est refusée (clé jamais en clair) — dans les deux
+        # langues
+        cfg = {"ia_api_key": "sk", "ia_model": "m",
+               "ia_url": "http://p.test/v1"}
+        self.assertIn("https", ia.status(cfg, lang="fr")["reason"])
+        self.assertIn("https", ia.status(cfg, lang="en")["reason"])
+
+    def test_proxy_erreurs_lang(self):
+        cfg = make_config(self.tmp)
+        for code, corps, fr, en in (
+                (0, "", "injoignable", "unreachable"),
+                (429, "{}", "limite du jour", "daily limit"),
+                (500, "boom", "indisponible", "unavailable"),
+                (403, "{}", "refusé", "refused"),
+        ):
+            r_fr = ia.generate(cfg, transport=FakeTransport([(code, corps)]),
+                               lang="fr")
+            self.assertIn(fr, r_fr["error"], r_fr)
+            r_en = ia.generate(cfg, transport=FakeTransport([(code, corps)]),
+                               lang="en")
+            self.assertIn(en, r_en["error"], r_en)
+
+    def test_proxy_reponse_tronquee_en(self):
+        body = json.dumps({"choices": [
+            {"message": {"content": ":a :b :c ."},
+             "finish_reason": "length"}]})
+        t = FakeTransport([(200, body)])
+        r = ia.generate(make_config(self.tmp), transport=t, lang="en")
+        self.assertFalse(r["ok"])
+        self.assertIn("out of tokens", r["error"])
+
+    def test_contrôles_lang(self):
+        # parse : syntaxe invalide
+        c_fr = ia.control_parse(":a :b . log:implies", BASE_URI, "fr")
+        c_en = ia.control_parse(":a :b . log:implies", BASE_URI, "en")
+        self.assertIn("syntaxe N3 invalide", c_fr["error"])
+        self.assertIn("invalid N3 syntax", c_en["error"])
+        # parse : règle injectée
+        doc = ("@prefix : <http://example.org/> .\n"
+               "@prefix log: <http://www.w3.org/2000/10/swap/log#> .\n"
+               "@forAll :x , :y .\n"
+               "{ :x :p :y } log:implies { :x :q :y } .\n")
+        self.assertIn("règle", ia.control_parse(doc, BASE_URI, "fr")["error"])
+        self.assertIn("rule statement",
+                      ia.control_parse(doc, BASE_URI, "en")["error"])
+        # cohérence : incohérente
+        kb = "@prefix : <http://example.org/> .\n:alice :parentOf :bob .\n"
+        self.assertIn("incohérentes",
+                      ia.control_coherence(kb, RULES_INCOHERENTES,
+                                           BASE_URI, lang="fr")["error"])
+        self.assertIn("inconsistent",
+                      ia.control_coherence(kb, RULES_INCOHERENTES,
+                                           BASE_URI, lang="en")["error"])
+        # cohérence : skip
+        self.assertIn("aucune règle",
+                      ia.control_coherence(kb, "", BASE_URI,
+                                           lang="fr")["skipped"])
+        self.assertIn("no existing rule",
+                      ia.control_coherence(kb, "", BASE_URI,
+                                           lang="en")["skipped"])
+        # plausibilité
+        self.assertIn("faits (plage demandée",
+                      ia.control_plausibilite(KB_RECETTES, BASE_URI,
+                                              2000, 100, "fr")["error"])
+        self.assertIn("facts (requested range",
+                      ia.control_plausibilite(KB_RECETTES, BASE_URI,
+                                              2000, 100, "en")["error"])
+        self.assertIn("sans rdf:type",
+                      ia.control_plausibilite(
+                          "@prefix : <http://example.org/> .\n"
+                          ":a :p :b .\n", BASE_URI, 1, 2, "fr")["error"])
+        self.assertIn("without rdf:type",
+                      ia.control_plausibilite(
+                          "@prefix : <http://example.org/> .\n"
+                          ":a :p :b .\n", BASE_URI, 1, 2, "en")["error"])
+
+    def test_generation_refusee_en(self):
+        kb = "@prefix : <http://example.org/> .\n:alice :parentOf :bob .\n"
+        t = FakeTransport([ok_response(kb)] * 3)
+        r = ia.generate(make_config(self.tmp), rules=RULES_INCOHERENTES,
+                        base_uri=BASE_URI, n_facts=1, n_entities=2,
+                        transport=t, lang="en")
+        self.assertFalse(r["ok"])
+        self.assertIn("refused", r["error"])
+        # l'erreur du contrôle cohérence est aussi en anglais
+        self.assertIn("inconsistent", r["controls"][1]["error"])
+        # le prompt reste en français (calibré) : même avec lang=en
+        user = t.calls[0]["payload"]["messages"][1]["content"]
+        self.assertIn("DONNÉES SEULES", user)

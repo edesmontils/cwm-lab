@@ -21,4 +21,4 @@ par ``cwm_lab.server``.
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"
