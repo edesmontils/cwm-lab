@@ -1074,16 +1074,32 @@ function positionBadges() {
   graphBadges.innerHTML = "";
   if (!graphNetwork || !Object.keys(graphAttrs).length) return;
   const w = graphCanvas.clientWidth, h = graphCanvas.clientHeight;
+  // getPosition renvoie les coordonnées **du réseau** (monde) ; la
+  // pastille est un élément HTML positionné en coordonnées **écran**
+  // (relatives au canvas). vis 10.x n'expose pas de canvasToScreen :
+  // la vue est une homothétie + translation,
+  //   écran = monde × scale + translation,
+  // et getViewPosition() renvoie le point du monde situé au **centre**
+  // du canvas — d'où translation = centre − position × scale.
+  // Sans cette conversion, la pastille est décalée du nœud dès que
+  // le graphe est recentré, zoomé ou pané.
+  const scale = graphNetwork.getScale();
+  const vp = graphNetwork.getViewPosition();
+  const tx = w / 2 - vp.x * scale;
+  const ty = h / 2 - vp.y * scale;
   for (const [id, items] of Object.entries(graphAttrs)) {
     const pos = graphNetwork.getPosition(id);
+    if (!pos) continue;
+    const sx = pos.x * scale + tx;
+    const sy = pos.y * scale + ty;
     // nœud détruit ou hors du canvas : pas de pastille flottante
-    if (!pos || pos.x < 0 || pos.x > w || pos.y < 0 || pos.y > h) continue;
+    if (sx < 0 || sx > w || sy < 0 || sy > h) continue;
     const b = document.createElement("span");
     b.className = "attr-badge";
     b.textContent = items.length;
     b.title = items.join("\n");
-    b.style.left = (pos.x + 12) + "px";
-    b.style.top = (pos.y - 16) + "px";
+    b.style.left = (sx + 12) + "px";
+    b.style.top = (sy - 16) + "px";
     graphBadges.appendChild(b);
   }
 }
@@ -1133,7 +1149,10 @@ function renderGraph(data) {
     nodes: { borderWidth: 2 },
     edges: { smooth: { type: "continuous" } },
   });
-  graphNetwork.on("afterDrawing", positionBadges);
+  // À chaque dessin du canvas, les pastilles suivent les nœuds
+  // (le wrapper évite de transmettre la référence du contexte
+  // d'événement à une fonction qui ne l'utilise pas).
+  graphNetwork.on("afterDrawing", () => positionBadges());
   graphMeta.textContent = `— ${data.statement_count} énoncé(s) · ` +
     `${data.nodes.length} nœud(s) · ${data.edges.length} arc(s)` +
     (data.truncated ? " (tronqué)" : "") + ` · ${data.elapsed_ms} ms` +
