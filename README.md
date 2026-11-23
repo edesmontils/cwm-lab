@@ -134,7 +134,7 @@ cache P8**, réinitialisés chaque jour) : épuisé → bouton
 désactivé. Hors cache P8 (non déterministe, coûteux). Absente la
 config (`.env`) → bouton désactivé avec message explicite, l'appli
 fonctionne sans IA. `ia.py` (+ extensions de `cache.py` et de
-`server.py`), 42 tests dont l'intégration serveur (proxy fictif,
+`server.py`), 43 tests dont l'intégration serveur (proxy fictif,
 réseau jamais touché).
 
 **Confidentialité (opt-in)** : quand l'étudiant clique sur le
@@ -198,7 +198,7 @@ cwm-lab --port 8080
 
 `pip install cwm-lab` résout automatiquement `cwm>=2.9.3` (CWM 2.0,
 fork, sur PyPI) ; en développement : `pip install -e .` depuis ce
-dépôt. `make test` exécute les tests unitaires (152) ; `make serve`
+dépôt. `make test` exécute les tests unitaires (153) ; `make serve`
 démarre le serveur.
 
 ## Configuration (P8/P9, facultative)
