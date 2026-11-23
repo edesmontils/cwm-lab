@@ -1,4 +1,4 @@
-# Guide enseignant — TP Web sémantique (CWM 2.0)
+# Guide enseignant — CWM Lab (TP Web sémantique, CWM 2.0)
 
 > Durée : **2 h** — Public : Master MIAGE — Prérequis : aucun
 > (notions de base en Python utiles, non exigées). Matériel : l'outil

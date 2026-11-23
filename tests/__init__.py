@@ -1,4 +1,4 @@
-"""cwm_lab.tests — tests de l'outil TP Web sémantique."""
+"""cwm_lab.tests — tests de CWM Lab."""
 
 # Copyright 2026 CWM 2.0 maintainers
 #

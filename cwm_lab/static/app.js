@@ -1,4 +1,4 @@
-/* app.js — front de l'outil TP Web sémantique (P1 → P7).
+/* app.js — front de CWM Lab (P1 → P7).
 
 Cinq éditeurs CodeMirror 6 (bundle local, voir
 static/vendor/codemirror/README.md) — données, règles, requête,

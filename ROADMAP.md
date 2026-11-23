@@ -1,4 +1,4 @@
-# Feuille de route — cwm-lab, outil TP Web sémantique
+# Feuille de route — CWM Lab (cwm-lab)
 
 > Outil de TP (Master MIAGE) sur la **cohérence**, la **validité** et
 > les **règles**, construit sur CWM 2.0.

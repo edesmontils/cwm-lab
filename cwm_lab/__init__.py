@@ -1,4 +1,4 @@
-"""cwm_lab — Outil TP Web sémantique sur CWM 2.0.
+"""cwm_lab — CWM Lab, outil de TP Web sémantique sur CWM 2.0.
 
 Tableau de bord local (backend stdlib + navigateur) pour un TP de
 Web sémantique : cohérence, validité et règles. Voir ../ROADMAP.md.

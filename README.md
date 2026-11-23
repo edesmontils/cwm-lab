@@ -1,4 +1,4 @@
-# cwm-lab — Outil TP Web sémantique (CWM 2.0)
+# CWM Lab — outil de TP Web sémantique (CWM 2.0)
 
 > **Application web locale** pour un TP de Web sémantique (Master MIAGE)
 > sur les notions de **cohérence**, **validité** et **règles** —

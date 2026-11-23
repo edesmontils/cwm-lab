@@ -1,4 +1,4 @@
-"""server — serveur HTTP (stdlib) de l'outil TP Web sémantique.
+"""server — serveur HTTP (stdlib) de CWM Lab.
 
 Lancement :
 
@@ -316,7 +316,7 @@ class Handler(BaseHTTPRequestHandler):
 
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="cwm_lab.server",
-                                 description="Outil TP Web sémantique (CWM 2.0)")
+                                 description="CWM Lab (CWM 2.0)")
     ap.add_argument("--port", type=int, default=8000, help="port (défaut 8000)")
     ap.add_argument("--host", default="127.0.0.1", help="interface (défaut 127.0.0.1)")
     args = ap.parse_args(argv)
@@ -329,7 +329,7 @@ def main(argv=None):
         CACHE = None
         print("cache indisponible (%s) : mode sans cache" % e)
     server = ThreadingHTTPServer((args.host, args.port), Handler)
-    print("Outil TP Web sémantique — CWM 2.0 (lab %s)" % __version__)
+    print("CWM Lab — CWM 2.0 (v%s)" % __version__)
     print("Cache : %s"
           % (CACHE.disk_dir or "mémoire seule (répertoire disque indisponible)"))
     print("Ouvrir http://%s:%d   (Ctrl-C pour arrêter)" % (args.host, args.port))

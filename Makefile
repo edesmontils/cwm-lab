@@ -1,4 +1,4 @@
-# Makefile — cwm-lab (outil TP Web sémantique sur CWM 2.0)
+# Makefile — CWM Lab (cwm-lab) — outil de TP Web sémantique sur CWM 2.0
 
 .PHONY: test serve
 
