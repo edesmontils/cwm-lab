@@ -1,0 +1,25 @@
+# CI — cwm-lab : installe le paquet (dépendance « cwm » résolue sur
+# PyPI) et rejoue les tests unitaires (110) sur Python 3.10 et 3.12.
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Installer cwm-lab (dépendance cwm depuis PyPI)
+        run: pip install -e .
+      - name: Tests unitaires
+        run: make test
