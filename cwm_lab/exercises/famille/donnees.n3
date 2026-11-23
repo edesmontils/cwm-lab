@@ -4,12 +4,23 @@
 # Un petit graphe familial : 3 personnes, 2 liens de parenté.
 # Suffisant pour parcourir TOUTES les fonctions de l'outil, en
 # miniature, avant l'exercice « recettes ».
+#
+# Les libellés (rdfs:label) sont bilingues (@fr / @en) : l'interface
+# affiche celui de sa langue (repli : sans étiquette, puis le premier
+# libellé présent). Les noms propres restent sans étiquette — ils
+# s'écrivent pareil dans les deux langues.
 # =====================================================================
 @prefix : <http://example.org/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 
-:alice a :Person .
-:bob   a :Person .
-:carl  a :Person .
+# Ontologie : une classe, deux propriétés (chacune bilingue).
+:Person a rdfs:Class ; rdfs:label "Personne"@fr , "Person"@en .
+:parentOf a rdfs:Property ; rdfs:label "est parent de"@fr , "is parent of"@en .
+:grandparentOf a rdfs:Property ; rdfs:label "est grand-parent de"@fr , "is grandparent of"@en .
+
+:alice a :Person ; rdfs:label "Alice" .
+:bob   a :Person ; rdfs:label "Bob" .
+:carl  a :Person ; rdfs:label "Carl" .
 :alice :parentOf :bob .
 :bob   :parentOf :carl .
 

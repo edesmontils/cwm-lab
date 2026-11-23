@@ -14,6 +14,15 @@ et du **profil médical du patient** (allergies, maladies).
 | `regles.n3`        | —             | 14 règles N3 (chaînage avant)                                 |
 | `corriges/`        | —             | Corrigés des exercices (à charger **avec** la base)            |
 
+> **Libellés bilingues** : les ontologies portent des `rdfs:label`
+> (`@fr` / `@en`). L'outil affiche le libellé de **sa langue**
+> (bascule en haut à droite) : repli sans étiquette, puis premier
+> libellé présent. La requête préchargée sélectionne donc des
+> **ressources** (`?pat`, `?rec`, `?cond`) — le backend les affiche
+> sous le libellé choisi ; une variable sur `rdfs:label` produirait
+> **une ligne par libellé** (2 par recette ici), ce que la requête
+> évite. Les IRI ne changent jamais.
+
 Les trois espaces de nom sont **indépendants** : la sémantique des
 recettes (`rec:`), des ingrédients (`ingr:`) et du médical (`med:`)
 n'ont de liens qu'aux **arêtes** (`rec:contient`, `med:provoque`,
@@ -75,14 +84,20 @@ Tableau patient × recette × motif (SPARQL) :
 ```sparql
 PREFIX rec: <http://example.org/recette#>
 PREFIX med: <http://example.org/medical#>
-PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
-SELECT ?pat ?rec ?libPat ?libRec ?libCond WHERE {
+SELECT ?pat ?rec ?cond WHERE {
   ?pat rec:nePeutPasManger ?rec .
-  ?pat rdfs:label ?libPat .
-  ?rec rdfs:label ?libRec .
-  OPTIONAL { ?rec med:contreIndication ?cond . ?cond rdfs:label ?libCond . }
+  OPTIONAL { ?rec med:contreIndication ?cond . }
 }
 ```
+
+Ici la colonne `?cond` est toujours remplie (chaque
+`nePeutPasManger` est dérivé d'une `contreIndication`) — l'`OPTIONAL`
+garde le tableau stable si une recette était interdite sans condition
+nommée. **À essayer** : ajouter une colonne libellée
+(`?pat rdfs:label ?libPat`) et observer — avec des libellés
+bilingues, chaque ligne est **doublée** (une ligne par libellé) :
+c'est pourquoi le tableau sélectionne des ressources, pas des
+libellés.
 
 ## Résultats attendus (après raisonnement)
 

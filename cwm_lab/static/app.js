@@ -551,6 +551,21 @@ function renderInfer(data, tab = true) {
 
 let inferBusy = false;
 
+// Corps de la requête /api/infer — partagé avec le re-fetch de
+// changement de langue (i18n P10.1 : les nouveaux faits libellés
+// rdfs:label sont choisis dans la langue de l'application).
+function inferBody() {
+  return {
+    kb: editorView.state.doc.toString(),
+    rules: rulesView.state.doc.toString(),
+    base_uri: baseUriInput.value.trim() || DEFAULT_BASE_URI,
+    mode: document.getElementById("infer-mode").value,
+    store_rules: document.getElementById("infer-store-rules").checked,
+    timeout: parseFloat(document.getElementById("infer-timeout").value) || 0,
+    lang: i18nLang(),
+  };
+}
+
 async function doInfer() {
   if (inferBusy) return;
   inferBusy = true;
@@ -558,14 +573,7 @@ async function doInfer() {
   btn.disabled = true;
   btn.textContent = t("btn.reasoning");
   inferOutput.innerHTML = `<p class="muted">${t("infer.busy")}</p>`;
-  const body = {
-    kb: editorView.state.doc.toString(),
-    rules: rulesView.state.doc.toString(),
-    base_uri: baseUriInput.value.trim() || DEFAULT_BASE_URI,
-    mode: document.getElementById("infer-mode").value,
-    store_rules: document.getElementById("infer-store-rules").checked,
-    timeout: parseFloat(document.getElementById("infer-timeout").value) || 0,
-  };
+  const body = inferBody();
   try {
     const resp = await fetch("/api/infer", {
       method: "POST",
@@ -677,6 +685,22 @@ function renderQuery(data, tab = true) {
 
 let queryBusy = false;
 
+// Corps de la requête /api/query — partagé avec le re-fetch de
+// changement de langue.
+function queryBody(reason) {
+  return {
+    kb: editorView.state.doc.toString(),
+    rules: rulesView.state.doc.toString(),
+    query: queryView.state.doc.toString(),
+    base_uri: baseUriInput.value.trim() || DEFAULT_BASE_URI,
+    reason,
+    mode: document.getElementById("infer-mode").value,
+    store_rules: document.getElementById("infer-store-rules").checked,
+    timeout: parseFloat(document.getElementById("infer-timeout").value) || 0,
+    lang: i18nLang(),
+  };
+}
+
 async function doQuery() {
   if (queryBusy) return;
   queryBusy = true;
@@ -688,17 +712,10 @@ async function doQuery() {
     (reason ? t("query.busyReason") : `</p>`);
   // Les options de raisonnement (mode, règles stockées, timeout) sont
   // celles de la barre commune — identiques pour « Raisonner » et pour
-  // « Interroger » avec raisonnement.
-  const body = {
-    kb: editorView.state.doc.toString(),
-    rules: rulesView.state.doc.toString(),
-    query: queryView.state.doc.toString(),
-    base_uri: baseUriInput.value.trim() || DEFAULT_BASE_URI,
-    reason,
-    mode: document.getElementById("infer-mode").value,
-    store_rules: document.getElementById("infer-store-rules").checked,
-    timeout: parseFloat(document.getElementById("infer-timeout").value) || 0,
-  };
+  // « Interroger » avec raisonnement. lang : les IRI des résultats
+  // porteurs d'un rdfs:label sont choisis dans la langue courante
+  // (i18n P10.1).
+  const body = queryBody(reason);
   try {
     const resp = await fetch("/api/query", {
       method: "POST",
@@ -966,9 +983,14 @@ function setEditorText(view, text) {
 
 async function loadExercisesList() {
   try {
-    const resp = await fetch("/api/exercises");
+    // i18n P10.1 : les titres des énoncés sont lus dans la langue
+    // courante (le re-rendu de changement de langue rappelle cette
+    // fonction — la sélection est conservée).
+    const selected = exerciseSelect.value;
+    const resp = await fetch("/api/exercises?lang=" + encodeURIComponent(i18nLang()));
     const data = await resp.json();
     if (!data.ok || !Array.isArray(data.exercises)) return;
+    exerciseSelect.innerHTML = "";
     for (const ex of data.exercises) {
       const opt = document.createElement("option");
       opt.value = ex.name;
@@ -976,6 +998,7 @@ async function loadExercisesList() {
       opt.title = t("exercise.opt", ex.title, ex.files);
       exerciseSelect.appendChild(opt);
     }
+    exerciseSelect.value = selected;
   } catch {
     // serveur injoignable : pas de liste, pas de faux message
   }
@@ -990,7 +1013,10 @@ async function doLoadExercise() {
   const btn = document.getElementById("btn-load-exercise");
   btn.disabled = true;
   try {
-    const resp = await fetch("/api/exercise?name=" + encodeURIComponent(name));
+    // i18n P10.1 : l'énoncé est servi dans la langue courante
+    // (enonce.en.md s'il existe, sinon enonce.md).
+    const resp = await fetch("/api/exercise?name=" + encodeURIComponent(name) +
+      "&lang=" + encodeURIComponent(i18nLang()));
     const data = await resp.json();
     if (!data.ok) {
       const msg = (data.errors || [{}])[0].message || t("exercise.unreadable");
@@ -1001,6 +1027,7 @@ async function doLoadExercise() {
     // (domaine = énoncé ; cohérence = règles) ; un nouvel exercice
     // remplace le contexte précédent, y compris « aucun ».
     loadedExercise = data.name;
+    lastRender.exercise = data.name;   // re-fetch de l'énoncé au changement de langue
     currentEnonce = data.enonce || "";
     // Préchargement optionnel de la base URI.
     if (data.base_uri) baseUriInput.value = data.base_uri;
@@ -1295,6 +1322,37 @@ function updateGraphMeta(data) {
     : "";
 }
 
+// Facteurs vis.js — partagés avec le rafraîchissement des libellés
+// (changement de langue : mêmes ids, seules les étiquettes changent,
+// la vue de l'utilisateur est préservée).
+function visNodeData(n) {
+  const c = n.inferred ? GRAPH_INFERRED : GRAPH_COLORS[n.kind];
+  return {
+    id: n.id,
+    label: n.label,
+    title: n.title || n.id,
+    shape: n.kind === "literal" ? "box" : "dot",
+    size: n.kind === "resource" ? 14 : 11,
+    color: { background: c.background, border: c.border,
+             highlight: { background: "#fde68a", border: "#b45309" } },
+    font: { color: "#1a2332", size: n.kind === "literal" ? 11 : 12 },
+  };
+}
+
+function visEdgeData(e, i) {
+  return {
+    id: i,
+    from: e.from,
+    to: e.to,
+    label: e.label,
+    arrows: "to",
+    color: { color: e.inferred ? "#f59e0b" : "#94a3b8",
+             highlight: "#2563eb",
+             hover: "#64748b" },
+    font: { size: 10, color: "#475569", strokeWidth: 4, strokeColor: "#fff" },
+  };
+}
+
 function renderGraph(data) {
   destroyGraph();
   graphAttrs = (data.ok && data.attrs) || {};
@@ -1308,30 +1366,8 @@ function renderGraph(data) {
     return;
   }
   graphCanvas.hidden = false;
-  const nodes = new vis.DataSet(data.nodes.map((n) => {
-    const c = n.inferred ? GRAPH_INFERRED : GRAPH_COLORS[n.kind];
-    return {
-      id: n.id,
-      label: n.label,
-      title: n.title || n.id,
-      shape: n.kind === "literal" ? "box" : "dot",
-      size: n.kind === "resource" ? 14 : 11,
-      color: { background: c.background, border: c.border,
-               highlight: { background: "#fde68a", border: "#b45309" } },
-      font: { color: "#1a2332", size: n.kind === "literal" ? 11 : 12 },
-    };
-  }));
-  const edges = new vis.DataSet(data.edges.map((e, i) => ({
-    id: i,
-    from: e.from,
-    to: e.to,
-    label: e.label,
-    arrows: "to",
-    color: { color: e.inferred ? "#f59e0b" : "#94a3b8",
-             highlight: "#2563eb",
-             hover: "#64748b" },
-    font: { size: 10, color: "#475569", strokeWidth: 4, strokeColor: "#fff" },
-  })));
+  const nodes = new vis.DataSet(data.nodes.map(visNodeData));
+  const edges = new vis.DataSet(data.edges.map(visEdgeData));
   graphNetwork = new vis.Network(graphCanvas, { nodes, edges }, {
     physics: {
       solver: "forceAtlas2Based",
@@ -1361,6 +1397,7 @@ async function fetchGraphData(reason, hide) {
     mode: document.getElementById("infer-mode").value,
     timeout: parseFloat(document.getElementById("infer-timeout").value) || 0,
     hide_literals: hide,
+    lang: i18nLang(),   // i18n P10.1 : libellés d'ontologie dans la langue courante
   };
   const resp = await fetch("/api/graph", {
     method: "POST",
@@ -1400,6 +1437,38 @@ document.getElementById("graph-reason").addEventListener("change",
   refreshGraph);
 document.getElementById("graph-hide-literals").addEventListener("change",
   refreshGraph);
+
+// i18n P10.1 : au changement de langue, les libellés d'ontologie du
+// graphe (nœuds-ressources, prédicats d'arcs, attributs masqués) sont
+// choisis dans la nouvelle langue — re-fetch, puis mise à jour EN
+// PLACE des DataSets vis (mêmes ids : la vue de l'utilisateur,
+// positions comprises, est préservée).
+async function refreshGraphLabels() {
+  if (!graphNetwork) return;
+  const reason = document.getElementById("graph-reason").checked;
+  const hide = document.getElementById("graph-hide-literals").checked;
+  let data;
+  try {
+    data = await fetchGraphData(reason, hide);
+  } catch (e) {
+    return;   // le graphe reste affiché tel quel
+  }
+  lastRender.graph = data;
+  if (!data.ok) {
+    updateGraphMeta(data);
+    return;
+  }
+  graphAttrs = data.attrs || {};
+  // vis.js garde les DataSets dans `body.data` : on met à jour EN
+  // PLACE par id — les positions (x/y) des nœuds existants sont
+  // préservées, seules les étiquettes changent. Au changement de
+  // langue l'ensemble des nœuds/arcs est identique (même KB), donc
+  // `update` suffit (ajoute les ids nouveaux, ne supprime rien).
+  graphNetwork.body.data.nodes.update(data.nodes.map(visNodeData));
+  graphNetwork.body.data.edges.update(data.edges.map(visEdgeData));
+  updateGraphMeta(data);
+  positionBadges();
+}
 
 // ----------------------------------------------------------------------
 // P7.1 : poignée de redimensionnement des colonnes
@@ -1464,18 +1533,72 @@ fetch("/api/version")
 // Les chaînes statiques (entête, onglets, bannière par défaut…) sont
 // traitées par i18n.js (attributs data-i18n). Ici, on re-rend les
 // contenus DYNAMIQUES (dernier état de chaque action) dans la nouvelle
-// langue — sans re-fetch, sans forcer d'onglet, sans reconstruire le
-// graphe (la vue de l'utilisateur est préservée), sans ré-écrire la
-// preuve (une altération manuelle n'est pas écrasée).
+// langue — sans forcer d'onglet, sans reconstruire le graphe (la vue
+// de l'utilisateur est préservée), sans ré-écrire la preuve (une
+// altération manuelle n'est pas écrasée), sans toucher les éditeurs.
+//
+// i18n P10.1 — les contenus dont les LIBELLÉS d'ontologie dépendent
+// de la langue (nouveaux faits, lignes de requête, nœuds/arcs du
+// graphe, énoncés, titres du menu) sont choisis côté backend : ils
+// sont re-fetchés dans la nouvelle langue, puis re-rendus à la même
+// place (sans forcer d'onglet). Un échec réseau garde le rendu
+// précédent.
+async function refreshInferResults() {
+  try {
+    const resp = await fetch("/api/infer", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(inferBody()),
+    });
+    renderInfer(await resp.json(), false);
+  } catch (e) { /* le rendu précédent reste affiché */ }
+}
+
+async function refreshQueryResults() {
+  // La requête d'origine était-elle « avec raisonnement » ?
+  // (rows_reasoned n'est absent que dans ce cas.)
+  const reason = lastRender.query.rows_reasoned != null;
+  try {
+    const resp = await fetch("/api/query", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(queryBody(reason)),
+    });
+    renderQuery(await resp.json(), false);
+  } catch (e) { /* le rendu précédent reste affiché */ }
+}
+
+async function refreshEnonce() {
+  const name = lastRender.exercise;
+  try {
+    const resp = await fetch("/api/exercise?name=" + encodeURIComponent(name) +
+      "&lang=" + encodeURIComponent(i18nLang()));
+    const data = await resp.json();
+    if (!data.ok) return;
+    // Énoncé du prompt IA (P9) et panneau — sans toucher les éditeurs
+    // (le travail de l'étudiant n'est jamais écrasé).
+    currentEnonce = data.enonce || "";
+    enonceTitle.textContent = data.title;
+    if (data.enonce_html) enonceText.innerHTML = data.enonce_html;
+    else enonceText.textContent = data.enonce || t("exercise.emptyEnonce");
+  } catch (e) { /* le panneau garde l'énoncé précédent */ }
+}
+
 function reRenderAll() {
   if (lastRender.parse) renderResults(lastRender.parse.data, lastRender.parse.which, false);
-  if (lastRender.infer) renderInfer(lastRender.infer, false);
-  if (lastRender.query) renderQuery(lastRender.query, false);
+  // Libellés d'ontologie dans la langue : re-fetch (pas de re-rendu
+  // local — les chaînes de données ont changé de langue).
+  if (lastRender.infer) refreshInferResults();
+  if (lastRender.query) refreshQueryResults();
   if (lastRender.entail) renderEntail(lastRender.entail, false);
   if (lastRender.prove) renderProve(lastRender.prove, false);
   if (lastRender.check) renderCheck(lastRender.check, false);
   if (lastRender.ia) renderIa(lastRender.ia, false);
-  if (lastRender.graph) updateGraphMeta(lastRender.graph);
+  if (lastRender.graph && graphNetwork) refreshGraphLabels();
+  else if (lastRender.graph) updateGraphMeta(lastRender.graph);
+  // Énoncés + titres du menu : servis dans la nouvelle langue.
+  if (lastRender.exercise) refreshEnonce();
+  loadExercisesList();
   if (lastRender.exportFormat) {
     exportFormat.textContent = "→ " + EXPORT_LABEL[lastRender.exportFormat];
   }

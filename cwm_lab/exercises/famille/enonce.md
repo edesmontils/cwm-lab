@@ -8,24 +8,33 @@ l'exercice « recettes ».
 
 | Fichier | Contenu |
 |---|---|
-| `donnees.n3` | 3 personnes, 2 liens `:parentOf` |
+| `donnees.n3` | 3 personnes, 2 liens `:parentOf` + l'ontologie (classe, 2 propriétés) |
 | `regles.n3` | la règle du grand-parent (`log:implies`) |
+
+> **Libellés** : l'ontologie porte des `rdfs:label` bilingues
+> (`@fr` / `@en`). L'outil affiche celui de **sa langue** (basculable
+> en haut à droite) : repli sans étiquette, puis premier libellé
+> présent. Les IRI, eux, ne changent pas.
 
 ## Parcours
 
 1. **Parse** : chargez l'exercice, le parse se fait tout seul au
-   chargement. Vérifiez les stats (5 triples, 1 règle). Cassez une
-   ligne volontairement (un point manquant) : observez l'erreur dans la
-   **gouttière** (ligne/colonne) et le panneau. Remettez-la.
+   chargement. Vérifiez les stats (17 énoncés, dont 5 triples de
+   faits, 1 règle). Cassez une ligne volontairement (un point manquant)
+   : observez l'erreur dans la **gouttière** (ligne/colonne) et le
+   panneau. Remettez-la.
 2. **Raisonner** : « Raisonner » → combien de **nouveaux faits** ?
-   (`:alice :grandparentOf :carl` — un seul : la règle ne produit
-   rien d'autre.) Changez en mode « 1 passe » : le résultat change-t-il
-   ici ? (Non — une passe suffit. La différence n'apparaîtra que sur
-   les règles à plusieurs niveaux, cf. exercice 2.)
+   (un seul — affiché avec les libellés : *Alice est grand-parent de
+   Carl* — la règle ne produit rien d'autre.) Changez en mode « 1
+   passe » : le résultat change-t-il ici ? (Non — une passe suffit. La
+   différence n'apparaîtra que sur les règles à plusieurs niveaux,
+   cf. exercice 2.)
 3. **Interroger** : la requête préchargée sélectionne les
    grands-parents. Exécutez **sans** raisonnement : combien de lignes ?
    (0 — le fait n'est pas dans les données brutes.) Cochez « raisonner
    avant d'interroger » : 1 ligne, **surlignée** (diff avant/après).
+   La ligne montre les libellés choisis dans la langue de l'outil —
+   basculez de langue pour le vérifier.
 4. **Entraîne ?** : la conclusion préchargée est
    `:alice :grandparentOf :carl .` — le bouton répond **oui**.
    Changez-la en `:carl :grandparentOf :alice .` : **non**.
@@ -53,7 +62,7 @@ l'exercice « recettes ».
 
 ## Résultats attendus
 
-- Clôture : 5 données + 1 nouveau fait = 6 énoncés, 0 incohérence ;
+- Clôture : 17 données + 1 nouveau fait = 18 énoncés, 0 incohérence ;
 - Requête : 0 ligne brute, 1 ligne après raisonnement ;
 - Entraînement : oui pour `:alice :grandparentOf :carl`, non pour les
   deux autres ;

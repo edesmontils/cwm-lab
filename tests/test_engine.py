@@ -920,6 +920,180 @@ class TestGraph(unittest.TestCase):
         self.assertEqual(r["statement_count"], 3)
 
 
+# ----------------------------------------------------------------------
+# P10.1 — libellés bilingues des ontologies (i18n)
+# ----------------------------------------------------------------------
+
+LABELS_KB = (
+    "@prefix : <http://example.org/> .\n"
+    "@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n"
+    ":Person a rdfs:Class ; rdfs:label \"Personne\"@fr , \"Person\"@en .\n"
+    ":parentOf a rdfs:Property ;\n"
+    "  rdfs:label \"est parent de\"@fr , \"is parent of\"@en .\n"
+    ":alice a :Person ; rdfs:label \"Alice\" .\n"
+    ":bob   a :Person ; rdfs:label \"Bob\" .\n"
+    ":carl  a :Person ; rdfs:label \"Carl\" .\n"
+    ":alice :parentOf :bob .\n"
+    ":bob   :parentOf :carl .\n"
+)
+
+LABELS_RULES = (
+    "@prefix : <http://example.org/> .\n"
+    "@prefix log: <http://www.w3.org/2000/10/swap/log#> .\n"
+    "@forAll :x , :y , :z .\n"
+    "{ :x :parentOf :y . :y :parentOf :z . } log:implies { :x :gpOf :z } .\n"
+)
+
+
+class TestLabelsI18n(unittest.TestCase):
+    """Résolution des rdfs:label côté backend (langue de l'application)."""
+
+    def test_pick_langue_de_l_app(self):
+        labs = [("fr", "Personne"), ("en", "Person")]
+        self.assertEqual(engine._pick_label(labs, "fr"), "Personne")
+        self.assertEqual(engine._pick_label(labs, "en"), "Person")
+
+    def test_pick_repli_sans_etiquette(self):
+        labs = [("fr", "Personne"), (None, "Alice")]
+        self.assertEqual(engine._pick_label(labs, "en"), "Alice")
+
+    def test_pick_repli_premier_present(self):
+        # l'ordre des énoncés n'est pas fiable après canonicalize() :
+        # le repli « premier » ne dépend que de la liste d'index
+        labs = [("fr", "Personne"), ("en", "Person")]
+        self.assertEqual(engine._pick_label(labs, "de"), "Personne")
+        self.assertEqual(engine._pick_label(list(reversed(labs)), "de"),
+                         "Person")
+
+    def test_norm_lang(self):
+        self.assertEqual(engine._norm_lang("en"), "en")
+        self.assertEqual(engine._norm_lang("fr"), "fr")
+        for invalide in ("de", "FR", "", None, 3):
+            self.assertEqual(engine._norm_lang(invalide), "fr")
+
+    def test_infer_nouveaux_faits_traduits(self):
+        r_fr = engine.infer(LABELS_KB, LABELS_RULES, lang="fr")
+        r_en = engine.infer(LABELS_KB, LABELS_RULES, lang="en")
+        self.assertTrue(r_fr["ok"], r_fr["errors"])
+        # le fait inféré : :alice :gpOf :carl — les IRI libellés sont
+        # remplacés, le prédicat sans libellé reste son URI
+        self.assertEqual(r_fr["new_facts"],
+                         [["Alice", "http://example.org/gpOf", "Carl"]])
+        self.assertEqual(r_en["new_facts"],
+                         [["Alice", "http://example.org/gpOf", "Carl"]])
+
+    def test_infer_langue_change_le_libelle(self):
+        rules = (
+            "@prefix : <http://example.org/> .\n"
+            "@prefix log: <http://www.w3.org/2000/10/swap/log#> .\n"
+            "@forAll :x .\n"
+            "{ :x a :Person . } log:implies { :x :knows :plato } .\n")
+        r_fr = engine.infer(LABELS_KB, rules, lang="fr")
+        r_en = engine.infer(LABELS_KB, rules, lang="en")
+        # :knows et :plato sans libellé : URI intactes ; :alice a un
+        # libellé sans étiquette (repli commun aux deux langues)
+        self.assertIn(["Alice", "http://example.org/knows",
+                       "http://example.org/plato"], r_fr["new_facts"])
+        self.assertIn(["Alice", "http://example.org/knows",
+                       "http://example.org/plato"], r_en["new_facts"])
+        # :plato sans libellé : URI courte identique dans les deux
+        # langues ; :alice a un libellé sans étiquette (repli commun)
+        self.assertEqual(r_fr["new_facts"], r_en["new_facts"])
+
+    def test_query_lignes_traduites(self):
+        q = ("PREFIX ex: <http://example.org/>\n"
+             "SELECT ?x ?y WHERE { ?x ex:parentOf ?y }")
+        r_fr = engine.query(LABELS_KB, q, lang="fr")
+        r_en = engine.query(LABELS_KB, q, lang="en")
+        self.assertTrue(r_fr["ok"], r_fr["errors"])
+        self.assertEqual(r_fr["rows_raw"],
+                         [["Alice", "Bob"], ["Bob", "Carl"]])
+        self.assertEqual(r_en["rows_raw"],
+                         [["Alice", "Bob"], ["Bob", "Carl"]])
+
+    def test_query_iri_libelle_selon_langue(self):
+        q = ("PREFIX ex: <http://example.org/>\n"
+             "SELECT ?c WHERE { ?c a ex:Person }")
+        r_fr = engine.query(LABELS_KB, q, lang="fr")
+        r_en = engine.query(LABELS_KB, q, lang="en")
+        self.assertEqual(r_fr["rows_raw"],
+                         [["Alice"], ["Bob"], ["Carl"]])
+        # les individus ont des libellés sans étiquette : repli commun
+        self.assertEqual(r_fr["rows_raw"], r_en["rows_raw"])
+
+    def test_graph_noeuds_et_arcs_traduits(self):
+        r_fr = engine.graph(LABELS_KB, "", lang="fr")
+        r_en = engine.graph(LABELS_KB, "", lang="en")
+        self.assertTrue(r_fr["ok"], r_fr["errors"])
+        fr = {n["id"]: n["label"] for n in r_fr["nodes"]}
+        en = {n["id"]: n["label"] for n in r_en["nodes"]}
+        # nœud-ressource libellé : la langue choisit le libellé
+        self.assertEqual(fr["http://example.org/Person"], "Personne")
+        self.assertEqual(en["http://example.org/Person"], "Person")
+        # libellé sans étiquette : repli identique
+        self.assertEqual(fr["http://example.org/alice"], "Alice")
+        self.assertEqual(en["http://example.org/alice"], "Alice")
+        # arc : le prédicat libellé s'affiche sous son libellé choisi
+        arc_fr = [e["label"] for e in r_fr["edges"]
+                  if e["from"] == "http://example.org/alice"
+                  and e["to"] == "http://example.org/bob"]
+        arc_en = [e["label"] for e in r_en["edges"]
+                  if e["from"] == "http://example.org/alice"
+                  and e["to"] == "http://example.org/bob"]
+        self.assertEqual(arc_fr, ["est parent de"])
+        self.assertEqual(arc_en, ["is parent of"])
+
+    def test_graph_attributs_masques_traduits(self):
+        kb = (LABELS_KB +
+              ":age a rdfs:Property ;\n"
+              "  rdfs:label \"âge\"@fr , \"age\"@en .\n"
+              ":alice :age 30 .\n")
+        r = engine.graph(kb, "", hide_literals=True, lang="en")
+        self.assertTrue(r["ok"], r["errors"])
+        self.assertEqual(r["attrs"]["http://example.org/alice"],
+                         ["age 30"])
+
+    def test_exercice_famille_bilingue(self):
+        r_fr = engine.load_exercise("famille", lang="fr")
+        r_en = engine.load_exercise("famille", lang="en")
+        self.assertTrue(r_fr["ok"], r_fr["errors"])
+        self.assertTrue(r_en["ok"], r_en["errors"])
+        # l'énoncé servi est celui de la langue
+        self.assertIn("Famille", r_fr["title"])
+        self.assertIn("Family", r_en["title"])
+        self.assertNotIn("Famille", r_en["enonce"])
+        # données et règles communes aux deux langues
+        self.assertEqual(r_fr["kb"], r_en["kb"])
+        self.assertEqual(r_fr["rules"], r_en["rules"])
+
+    def test_liste_exercices_titres_bilingues(self):
+        r_fr = engine.list_exercises(lang="fr")
+        r_en = engine.list_exercises(lang="en")
+        self.assertTrue(r_fr["ok"])
+        titres_fr = {e["name"]: e["title"] for e in r_fr["exercises"]}
+        titres_en = {e["name"]: e["title"] for e in r_en["exercises"]}
+        self.assertIn("Famille", titres_fr["famille"])
+        self.assertIn("Family", titres_en["famille"])
+        # les deux listes ont les mêmes exercices
+        self.assertEqual(set(titres_fr), set(titres_en))
+
+    def test_exercice_sans_enonce_en_repli_fr(self):
+        # un exercice sans enonce.en.md sert l'énoncé français en « en »
+        import tempfile, os, shutil
+        d = os.path.join(engine.EXERCISES_DIR, "zz_test_lang")
+        os.makedirs(d, exist_ok=True)
+        try:
+            open(os.path.join(d, "enonce.md"), "w").write("# Test FR\n")
+            open(os.path.join(d, "donnees.n3"), "w").write(
+                "@prefix : <http://example.org/> .\n:a :b :c .\n")
+            r = engine.load_exercise("zz_test_lang", lang="en")
+            self.assertTrue(r["ok"], r["errors"])
+            self.assertIn("Test FR", r["title"])
+            self.assertIn("Test FR", r["enonce"])
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
+
+
 class TestMarkdown(unittest.TestCase):
     """P7 — convertisseur Markdown minimal des énoncés (stdlib)."""
 

@@ -8,7 +8,9 @@
 @prefix math: <http://www.w3.org/2000/10/swap/math#> .
 @prefix log:  <http://www.w3.org/2000/10/swap/log#> .
 
-med:insuffisanceRenale a med:Maladie ; med:type med:seuil ;
+med:insuffisanceRenale a med:Maladie ;
+  rdfs:label "insuffisance rénale (potassium)"@fr , "renal insufficiency (potassium)"@en ;
+  med:type med:seuil ;
   med:seuilPotassium 600 .
 
 { ?r rec:contient ?u . ?u rec:ingredient ?i . ?u rec:quantite ?q .

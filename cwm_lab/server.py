@@ -15,14 +15,18 @@ Endpoints (P0) :
                           "format": "n3" | "turtle" | "ntriples" | "rdf"}``
                           → résultat de :func:`cwm_lab.engine.serialize` ;
 - ``POST /api/infer`` : body JSON ``{"kb": ..., "rules": ...,
-                          "base_uri": ..., "mode": "think" | "once",
-                          "store_rules": bool, "timeout": float}``
-                          → résultat de :func:`cwm_lab.engine.infer` ;
+                           "base_uri": ..., "mode": "think" | "once",
+                           "store_rules": bool, "timeout": float,
+                           "lang": "fr" | "en"}``
+                           → résultat de :func:`cwm_lab.engine.infer`
+                           (les ``new_facts`` portant un
+                           ``rdfs:label`` sont affichés dans ``lang``) ;
 - ``POST /api/query`` : body JSON ``{"kb": ..., "query": ...,
-                          "rules": ..., "base_uri": ..., "reason": bool,
-                          "mode": "think" | "once", "store_rules": bool,
-                          "timeout": float}``
-                          → résultat de :func:`cwm_lab.engine.query` ;
+                           "rules": ..., "base_uri": ..., "reason": bool,
+                           "mode": "think" | "once", "store_rules": bool,
+                           "timeout": float, "lang": "fr" | "en"}``
+                           → résultat de :func:`cwm_lab.engine.query`
+                           (mêmes libellés d'affichage) ;
 - ``POST /api/entail`` : body JSON ``{"kb": ..., "rules": ...,
                           "conclusion": ..., "base_uri": ...,
                           "mode": "think" | "once", "timeout": float}``
@@ -48,16 +52,19 @@ Endpoints IA générative (P9 — jamais cachés : non déterministes) :
 
 Endpoints d'exercices et de visualisation (P5) :
 
-- ``GET /api/exercises`` : la liste des exercices disponibles
+- ``GET /api/exercises?lang=fr`` : la liste des exercices
+  disponibles (``lang`` ``fr`` / ``en``, défaut ``fr`` — le titre
+  est lu dans l'énoncé de cette langue)
   → ``{"exercises": [{"name", "title", "files"}, …]}`` ;
-- ``GET /api/exercise?name=X`` : l'exercice ``X`` (données, règles,
-  énoncé, préchargements) → résultat de
-  :func:`cwm_lab.engine.load_exercise` ;
+- ``GET /api/exercise?name=X&lang=fr`` : l'exercice ``X`` (données,
+  règles, énoncé, préchargements) → résultat de
+  :func:`cwm_lab.engine.load_exercise` (énoncé ``enonce.en.md`` si
+  ``lang=en`` et qu'il existe) ;
 - ``POST /api/graph`` : body JSON ``{"kb": ..., "rules": ...,
   "base_uri": ..., "reason": bool, "mode": "think" | "once",
-  "timeout": float}`` → résultat de
+  "timeout": float, "lang": "fr" | "en"}`` → résultat de
   :func:`cwm_lab.engine.graph` (nœuds/arcs vis.js, ``inferred``
-  si la clôture est calculée).
+  si la clôture est calculée ; libellés d'ontologie dans ``lang``).
 
 ``POST /api/parse`` accepte également ``"language": "sparql"``
 (validation de syntaxe de l'éditeur de requête).
@@ -192,12 +199,15 @@ class Handler(BaseHTTPRequestHandler):
                                       lang=lang))
             return
         if path == "/api/exercises":
-            self._send_json(engine.list_exercises())
+            params = urllib.parse.parse_qs(query_string)
+            lang = (params.get("lang") or ["fr"])[0]
+            self._send_json(engine.list_exercises(lang=lang))
             return
         if path == "/api/exercise":
             params = urllib.parse.parse_qs(query_string)
             name = (params.get("name") or [""])[0]
-            self._send_json(engine.load_exercise(name))
+            lang = (params.get("lang") or ["fr"])[0]
+            self._send_json(engine.load_exercise(name, lang=lang))
             return
         if path == "/" or path == "/index.html":
             self._send_file(os.path.join(STATIC_DIR, "index.html"))
@@ -257,6 +267,7 @@ class Handler(BaseHTTPRequestHandler):
                 mode=req.get("mode", "think"),
                 store_rules=bool(req.get("store_rules", False)),
                 timeout=req.get("timeout", 10.0),
+                lang=req.get("lang", "fr"),
             ))
             self._send_json(result)
             return
@@ -275,6 +286,7 @@ class Handler(BaseHTTPRequestHandler):
                 mode=req.get("mode", "think"),
                 store_rules=bool(req.get("store_rules", False)),
                 timeout=req.get("timeout", 10.0),
+                lang=req.get("lang", "fr"),
             ))
             self._send_json(result)
             return
@@ -335,6 +347,9 @@ class Handler(BaseHTTPRequestHandler):
                 timeout=req.get("timeout", 10.0),
                 # P7 : mode « attributs masqués » (littéraux → pastilles)
                 hide_literals=bool(req.get("hide_literals", False)),
+                # i18n P10.1 : libellés de l'ontologie dans la langue
+                # du front (défaut/repli « fr »)
+                lang=req.get("lang", "fr"),
             ))
             self._send_json(result)
             return

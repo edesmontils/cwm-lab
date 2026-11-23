@@ -8,32 +8,62 @@
 #   [ rec:ingredient <ingrédient> ; rec:quantite <grammes par portion> ]
 #
 # rec:quantite est exprimé en GRAMMES PAR PORTION.
+#
+# Les libellés (rdfs:label) sont bilingues (@fr / @en) : l'interface
+# affiche celui de sa langue. rec:contribution* sont des propriétés
+# intermédiaires PRODUITES PAR LES RÈGLES (regles.n3) — déclarées ici
+# pour leurs libellés.
 # =====================================================================
 @prefix rec: <http://example.org/recette#> .
 @prefix ingr: <http://example.org/ingredient#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 
-rec:soupeTomate a rec:Recette ; rdfs:label "Soupe de tomates au basilic" ;
+# ---------------- Types & propriétés (ontologie bilingue) ----------------
+rec:Recette a rdfs:Class ; rdfs:label "recette"@fr , "recipe"@en .
+
+rec:contient a rdfs:Property ; rdfs:label "contient"@fr , "contains"@en .
+rec:ingredient a rdfs:Property ; rdfs:label "ingrédient"@fr , "ingredient"@en .
+rec:quantite a rdfs:Property ;
+  rdfs:label "quantité (g/portion)"@fr , "quantity (g/portion)"@en .
+rec:nePeutPasManger a rdfs:Property ;
+  rdfs:label "ne peut pas manger"@fr , "cannot eat"@en .
+
+# Contributions produites par les règles à seuil (par portion) :
+rec:contributionSodium a rdfs:Property ;
+  rdfs:label "contribution sodium (mg/portion)"@fr , "sodium contribution (mg/portion)"@en .
+rec:contributionPurines a rdfs:Property ;
+  rdfs:label "contribution purines (mg/portion)"@fr , "purine contribution (mg/portion)"@en .
+rec:contributionSucre a rdfs:Property ;
+  rdfs:label "contribution sucre (g/portion)"@fr , "sugar contribution (g/portion)"@en .
+rec:contributionGrasSature a rdfs:Property ;
+  rdfs:label "contribution gras saturés (g/portion)"@fr , "saturated fat contribution (g/portion)"@en .
+rec:contributionHistamine a rdfs:Property ;
+  rdfs:label "contribution histamine (mg/portion)"@fr , "histamine contribution (mg/portion)"@en .
+rec:contributionAlcool a rdfs:Property ;
+  rdfs:label "contribution alcool (g/portion)"@fr , "alcohol contribution (g/portion)"@en .
+
+# ---------------- Recettes ----------------
+rec:soupeTomate a rec:Recette ; rdfs:label "Soupe de tomates au basilic"@fr , "Tomato soup with basil"@en ;
   rec:contient [ rec:ingredient ingr:tomate     ; rec:quantite 250 ] ;
   rec:contient [ rec:ingredient ingr:oignon      ; rec:quantite 50  ] ;
   rec:contient [ rec:ingredient ingr:huileOlive  ; rec:quantite 30  ] ;
   rec:contient [ rec:ingredient ingr:sucre       ; rec:quantite 2   ] ;
   rec:contient [ rec:ingredient ingr:sel         ; rec:quantite 2   ] .
 
-rec:gratinBrocoli a rec:Recette ; rdfs:label "Gratin de brocoli au fromage" ;
+rec:gratinBrocoli a rec:Recette ; rdfs:label "Gratin de brocoli au fromage"@fr , "Broccoli cheese gratin"@en ;
   rec:contient [ rec:ingredient ingr:brocoli     ; rec:quantite 200 ] ;
   rec:contient [ rec:ingredient ingr:pommeTerre  ; rec:quantite 250 ] ;
   rec:contient [ rec:ingredient ingr:fromage     ; rec:quantite 80  ] ;
   rec:contient [ rec:ingredient ingr:creme       ; rec:quantite 100 ] ;
   rec:contient [ rec:ingredient ingr:sel         ; rec:quantite 3   ] .
 
-rec:salmonLentilles a rec:Recette ; rdfs:label "Saumon rôti aux lentilles" ;
+rec:salmonLentilles a rec:Recette ; rdfs:label "Saumon rôti aux lentilles"@fr , "Roast salmon with lentils"@en ;
   rec:contient [ rec:ingredient ingr:saumon      ; rec:quantite 200 ] ;
   rec:contient [ rec:ingredient ingr:lentilles   ; rec:quantite 150 ] ;
   rec:contient [ rec:ingredient ingr:huileOlive  ; rec:quantite 30  ] ;
   rec:contient [ rec:ingredient ingr:sel         ; rec:quantite 2   ] .
 
-rec:tiramisu a rec:Recette ; rdfs:label "Tiramisu" ;
+rec:tiramisu a rec:Recette ; rdfs:label "Tiramisu"@fr , "Tiramisu"@en ;
   rec:contient [ rec:ingredient ingr:mascarpone      ; rec:quantite 150 ] ;
   rec:contient [ rec:ingredient ingr:oeuf            ; rec:quantite 100 ] ;
   rec:contient [ rec:ingredient ingr:sucre           ; rec:quantite 50  ] ;
@@ -41,7 +71,7 @@ rec:tiramisu a rec:Recette ; rdfs:label "Tiramisu" ;
   rec:contient [ rec:ingredient ingr:cacao           ; rec:quantite 10  ] ;
   rec:contient [ rec:ingredient ingr:biscuitSavoiard ; rec:quantite 80  ] .
 
-rec:satay a rec:Recette ; rdfs:label "Soupe de sate au lait de coco" ;
+rec:satay a rec:Recette ; rdfs:label "Soupe de sate au lait de coco"@fr , "Satay soup with coconut milk"@en ;
   rec:contient [ rec:ingredient ingr:arachide     ; rec:quantite 60  ] ;
   rec:contient [ rec:ingredient ingr:sauceCoco    ; rec:quantite 200 ] ;
   rec:contient [ rec:ingredient ingr:poulet       ; rec:quantite 150 ] ;
@@ -49,7 +79,7 @@ rec:satay a rec:Recette ; rdfs:label "Soupe de sate au lait de coco" ;
   rec:contient [ rec:ingredient ingr:tomate       ; rec:quantite 100 ] ;
   rec:contient [ rec:ingredient ingr:sel          ; rec:quantite 1   ] .
 
-rec:crepes a rec:Recette ; rdfs:label "Crêpes à la pâte d'arachide" ;
+rec:crepes a rec:Recette ; rdfs:label "Crêpes à la pâte d'arachide"@fr , "Peanut butter crêpes"@en ;
   rec:contient [ rec:ingredient ingr:farine   ; rec:quantite 200 ] ;
   rec:contient [ rec:ingredient ingr:oeuf     ; rec:quantite 150 ] ;
   rec:contient [ rec:ingredient ingr:lait     ; rec:quantite 100 ] ;
@@ -59,7 +89,7 @@ rec:crepes a rec:Recette ; rdfs:label "Crêpes à la pâte d'arachide" ;
   rec:contient [ rec:ingredient ingr:sel      ; rec:quantite 2   ] .
 
 # Le seul plat alcoolisé de la base (cirrhose : seuil à 0 g d'alcool).
-rec:pouletVinBlanc a rec:Recette ; rdfs:label "Poulet au vin blanc" ;
+rec:pouletVinBlanc a rec:Recette ; rdfs:label "Poulet au vin blanc"@fr , "Chicken in white wine"@en ;
   rec:contient [ rec:ingredient ingr:poulet    ; rec:quantite 150 ] ;
   rec:contient [ rec:ingredient ingr:oignon    ; rec:quantite 50  ] ;
   rec:contient [ rec:ingredient ingr:vinBlanc  ; rec:quantite 150 ] ;
@@ -69,7 +99,7 @@ rec:pouletVinBlanc a rec:Recette ; rdfs:label "Poulet au vin blanc" ;
 
 # Crêpes « sans gluten » : le composant gluten est présent par
 # contamination croisée (farineSF) — voir ingredients.n3 et l'exo 5.
-rec:crepesSF a rec:Recette ; rdfs:label "Crêpes « sans gluten »" ;
+rec:crepesSF a rec:Recette ; rdfs:label "Crêpes « sans gluten »"@fr , "'Gluten-free' crêpes"@en ;
   rec:contient [ rec:ingredient ingr:farineSF ; rec:quantite 200 ] ;
   rec:contient [ rec:ingredient ingr:oeuf     ; rec:quantite 150 ] ;
   rec:contient [ rec:ingredient ingr:lait     ; rec:quantite 100 ] ;
@@ -77,7 +107,7 @@ rec:crepesSF a rec:Recette ; rdfs:label "Crêpes « sans gluten »" ;
   rec:contient [ rec:ingredient ingr:sucre    ; rec:quantite 40  ] ;
   rec:contient [ rec:ingredient ingr:sel      ; rec:quantite 2   ] .
 
-rec:saladeNiceoise a rec:Recette ; rdfs:label "Salade niçoise" ;
+rec:saladeNiceoise a rec:Recette ; rdfs:label "Salade niçoise"@fr , "Niçoise salad"@en ;
   rec:contient [ rec:ingredient ingr:thon         ; rec:quantite 120 ] ;
   rec:contient [ rec:ingredient ingr:oeuf         ; rec:quantite 60  ] ;
   rec:contient [ rec:ingredient ingr:olives       ; rec:quantite 60  ] ;

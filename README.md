@@ -169,6 +169,32 @@ modèle, les erreurs du moteur de parse CWM (anglais technique) — et
 le **prompt du modèle reste en français** (calibré sur les
 énoncés du TP). 12 tests ; version `0.5.0`.
 
+**P10.1 livrée** (2026-11-23) : **libellés bilingues des
+ontologies d'exercices** — les `rdfs:label` des données
+(`@fr` / `@en` sur classes, propriétés et individus) sont
+**résolus côté backend** dans la langue de l'application :
+l'interface n'affiche que des chaînes prêtes à l'emploi, les IRI ne
+changent jamais. Choix en trois replis : libellé de la langue →
+libellé sans étiquette → premier libellé présent (deterministe,
+indépendant de l'ordre des énoncés après `canonicalize()`).
+Appliqué aux **nouvelles lignes de requête** (raw / raisonné /
+diff), aux **nouveaux faits** de « Raisonner » (diff calculé sur
+les IRI bruts, puis traduit), aux **nœuds-ressources, arcs et
+attributs masqués** du graphe, et aux **titres du menu** des
+exercices. Au changement de langue, ces contenus sont **re-fetchés**
+dans la nouvelle langue (re-rendu à la même place ; le graphe est
+mis à jour **in place** dans les DataSets vis, sans reconstruire le
+réseau — la vue de l'utilisateur est préservée) ; les éditeurs ne
+sont **jamais** touchés. Les ontologies des deux exercices sont
+bilingues (prédicats/classes typés `rdfs:Property`/`rdfs:Class` —
+le contrôle de plausibilité IA exige 0 sujet non typé), les noms
+propres restent **sans étiquette** (démo du repli), et les
+**énoncés sont traduits** (`enonce.en.md` optionnel par exercice,
+`enonce.md` = repli). Les requêtes d'exercice sélectionnent des
+**ressources** (une variable sur `rdfs:label` doublerait les
+lignes). Le paramètre `lang` entre dans la clé de cache (rien à
+faire). 13 tests ; version `0.5.1`.
+
 **P7 livrée** (2026-11-23) : **reprise d'ergonomie** — l'interface
 est repensée pour un étudiant qui découvre l'outil :
 

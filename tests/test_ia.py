@@ -36,9 +36,9 @@ from datetime import date, timedelta
 
 from cwm_lab import cache, engine, ia, server
 
-# KB valide de référence : l'exercice « recettes » (577 faits, 74
+# KB valide de référence : l'exercice « recettes » (774 faits, 108
 # entités, 0 sujet sans rdf:type, cohérent avec ses règles — vérifié
-# en P5). Sert de « réponse du modèle » aux tests de succès.
+# en P5 ; les libellés bilingues P10.1 ajoutent les ontologies).
 _RECETTES = engine.load_exercise("recettes")
 KB_RECETTES = _RECETTES["kb"]
 RULES_RECETTES = _RECETTES["rules"]
@@ -275,7 +275,7 @@ class TestIaControls(unittest.TestCase):
     def test_parse_ok(self):
         c = ia.control_parse(KB_RECETTES, BASE_URI)
         self.assertTrue(c["ok"], c)
-        self.assertEqual(c["statements"], 577)
+        self.assertEqual(c["statements"], 774)
         self.assertEqual(c["rules_detected"], 0)
 
     def test_parse_erreur(self):
@@ -312,8 +312,8 @@ class TestIaControls(unittest.TestCase):
     def test_plausibilite_ok(self):
         c = ia.control_plausibilite(KB_RECETTES, BASE_URI, 600, 100)
         self.assertTrue(c["ok"], c)
-        self.assertEqual(c["facts"], 577)
-        self.assertEqual(c["entities"], 74)
+        self.assertEqual(c["facts"], 774)
+        self.assertEqual(c["entities"], 108)
         self.assertEqual(c["untyped_subjects"], 0)
 
     def test_plausibilite_trop_peu_faits(self):

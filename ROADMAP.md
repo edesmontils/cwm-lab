@@ -819,8 +819,9 @@ anglais (salle internationale, lecteur de la documentation
   parse CWM (anglais technique) sont du **contenu**, non localisés.
 
 **Hors périmètre (contenu, pas interface)** : les énoncés des
-exercices et leurs titres (contenu pédagogique), la note du modèle
-IA, les erreurs du parser CWM (anglais technique).
+exercices et leurs titres (contenu pédagogique — **pris en charge en
+P10.1**), la note du modèle IA, les erreurs du parser CWM (anglais
+technique).
 
 **Critère d'acceptation** : la bascule FR ↔ EN dans l'entête
 retourne toute l'interface (statiques + résultats déjà affichés)
@@ -859,6 +860,85 @@ sur langue invalide, prompt inchangé)
   — pas de framework i18n, zéro dépendance, cohérent avec la
   politique du dépôt (comme CodeMirror/vis.js vendus en local,
   l'i18n est un petit module maison).
+
+### P10.1 — Libellés bilingues des ontologies d'exercices ✅ (livrée le 2026-11-23)
+
+**Objectif** : les **ontologies des exercices** (classes, propriétés,
+individus) portent des `rdfs:label` **bilingues** (`@fr` / `@en`) et
+l'application affiche les chaînes **dans la langue de l'app** —
+l'étudiant en anglais ne lit plus de libellés français. Les **énoncés
+d'exercices** sont traduits (`enonce.en.md`).
+
+**Direction retenue** :
+
+- **résolution de labels côté backend** (pas de `FILTER(lang(…))`
+  dans les requêtes d'exercice — les lignes doubleraient par label,
+  et le langage est dynamique côté front) : `engine._label_index`
+  (par URI, liste des `rdfs:label` `(étiquette, valeur)`) +
+  `engine._pick_label` — choix en **trois replis** : langue de
+  l'app → libellé **sans étiquette** → **premier** libellé présent
+  (deterministe : l'ordre des énoncés n'est **pas** fiable après
+  `canonicalize()`, qui réordonne le store) ;
+- `lang="fr"` (défaut/repli si ∉ `("fr","en")`) ajouté à
+  `engine.infer` / `query` / `graph` / `list_exercises` /
+  `load_exercise` ; la traduction s'applique aux **nœuds/arcs/
+  attributs du graphe**, aux **lignes de requête** (`rows_raw` /
+  `rows_reasoned` / `new_rows` — le diff est calculé sur les valeurs
+  brutes, puis traduit) et aux **`new_facts`** d'infer (diff sur les
+  IRI bruts, puis traduit). **Pas** d'entail/prove/check (contenu
+  formel, pas de libellés) ;
+- l'index de labels est construit sur la **KB close d'origine** (pas
+  la clôture, qui n'en produit pas de nouveaux) ;
+- **données bilingues** : `@en` ajouté à chaque label `@fr` existant
+  ; **nouveaux labels typés** — `a rdfs:Property` (prédicats) /
+  `a rdfs:Class` (classes) — obligatoire : le contrôle de
+  plausibilité IA (P9) compte les `untyped_subjects` (sujets sans
+  `rdf:type`), le test exige 0 ; unités dans les libellés de
+  prédicats (`… (mg/100 g)`, `… (g/portion)`…) ; les **noms propres**
+  (Alice–Eve, famille) restent **sans étiquette** (démo du repli —
+  identiques dans les deux langues) ; les 3 maladies des corrigés
+  (`insuffisanceRenale`, `hyperCholest`, `IIH`) reçoivent des
+  libellés FR+EN ;
+- **énoncés** : `enonce.en.md` **optionnel** par exercice
+  (`enonce.md` = repli) ; le titre du menu = 1er `#` de l'énoncé de
+  la langue ;
+- **front** : `lang: i18nLang()` dans les bodies POST
+  (`/api/infer`, `/api/query`, `/api/graph`) et `?lang=` sur
+  `/api/exercises` / `/api/exercise` ; dans `reRenderAll()` :
+  re-fetch query/infer (bodies actuels), graphe = re-fetch +
+  **mise à jour in place** des labels dans les DataSets vis (pas de
+  reconstruction du réseau), énoncé = re-fetch `/api/exercise` et
+  MAJ **du panneau seulement** (jamais les éditeurs — le travail de
+  l'étudiant n'est pas écrasé) ;
+- **requêtes d'exercice** : sélectionnent des **ressources**
+  (`?pat`, `?rec`, `?cond`) — plus de `rdfs:label ?libPat` (sinon
+  une ligne par libellé) ; l'interface traduit les URI en libellés
+  choisis ;
+- **cache** : `lang` dans la requête → clé de cache distincte, rien
+  à faire ; **IA (P9)** : `entities` = simple comptage, prompt reste
+  FR — aucun changement.
+
+**Faits techniques établis en P10.1** (à réutiliser) :
+
+- `Literal` (CWM 2.0) a un attribut `lang` (`None` / `'fr'` /
+  `'en'`) ; `value()` renvoie la chaîne **sans** tag ;
+- SPARQL CWM : `?p rdfs:label ?lib` → **une ligne par label** ;
+  `FILTER(lang(?lib) = "fr")` fonctionne mais le langage est
+  dynamique côté front → la résolution reste côté backend ;
+- `close()` garde l'ordre du document ; `canonicalize()` (chemin
+  `query()`) **réordonne** → ne jamais compter sur l'ordre pour le
+  « premier label » (d'où les deux premiers replis de
+  `_pick_label`) ;
+- en mode « attributs masqués », un `rdfs:label` est déjà LE
+  libellé du nœud : il est **exclu** des attributs masqués
+  (sinon « label Alice » apparaissait en pastille/bulle).
+
+**Critère d'acceptation** : la bascule FR ↔ EN affiche les
+libellés d'ontologie (graphe, lignes de requête, nouveaux faits,
+titres du menu) et l'énoncé dans la nouvelle langue, sans toucher
+les éditeurs ni reconstruire le réseau vis. ✔ (13 tests
+`TestLabelsI18n` : replis, infer/query/graph fr/en, exercices
+bilingues, repli sans `enonce.en.md`)
 
 ## 4. Risques & points de vigilance
 
@@ -903,3 +983,4 @@ sur langue invalide, prompt inchangé)
 | 2026-11-23 | **P10 livrée** : internationalisation de l'interface (FR par défaut, EN) — **sélecteur de langue dans la barre d'entête** (persistance localStorage, `<html lang>` + titre de page suivent) ; module `static/i18n.js` (dictionnaires fr/en, `t(key, …)` avec placeholders, attributs `data-i18n`/`-ph`/`-title`/`-aria` sur le HTML statique, repli trois niveaux) ; `app.js` : ~100 chaînes dynamiques passées en `t()` + **re-rendu au changement de langue** (dernier état de chaque rendu conservé, sans re-fetch, sans forcer l'onglet, sans reconstruire le réseau vis, sans écraser une preuve altérée à la main) ; **backend localisé** : `ia.py` table `MESSAGES` fr/en + `_msg()` — quota, erreurs proxy, contrôles (parse/cohérence/plausibilité), refus de génération, statut ; le front envoie `lang` (`/api/ia/status?lang=`, body `/api/ia/generate`, défaut + repli `fr`) ; **le prompt du modèle reste en français** (calibré), la note du modèle et les erreurs du parser CWM = contenu non localisé ; 12 tests (55 dans `test_ia`, 165 au total) ; version 0.5.0 |
 | 2026-11-23 | **P10 — lien doc CWM 2.0 dans l'entête** : le texte « CWM 2.0 » du sous-titre de l'entête **link le README du dépôt CWM 2 (GitLab) dans la langue sélectionnée** — FR → `README.md`, EN → `README.en.md` (`target="_blank"`, infobulle localisée) ; nouveau mécanisme `data-i18n-href` dans `i18n.js` (la cible du lien est localisée comme le reste de l'interface : chaque dictionnaire porte sa propre URL, appliquée à l'init et au changement de langue) ; vérifié en navigateur (bascule FR↔EN : href, texte et infobulle suivent la langue, zéro erreur console) |
 | 2026-11-23 | **`cwm-lab` 0.5.0 publiée sur PyPI** — https://pypi.org/project/cwm-lab/0.5.0/ (wheel + sdist) : la P10 complète (i18n FR/EN + sélecteur d'entête + lien doc CWM 2.0 localisé) est installable en `pip install cwm-lab`. Validation : wheel 41 entrées (`i18n.js` présent, `.env` **absent**), **installation en venv vierge depuis PyPI** : version 0.5.0, lien d'entête + cibles FR/EN dans le HTML/i18n installés, `cwm_lab.ia.LANGS` importable. *Nuance TestPyPI* : la 0.5.0 de l'index de test est un build préliminaire (avant le lien d'entête) — non remplaçable (nom de fichier consommé, l'API de suppression TestPyPI n'existe plus) ; seule la PyPI fait foi |
+| 2026-11-23 | **P10.1 livrée** : libellés bilingues des ontologies d'exercices — `rdfs:label` `@fr`/`@en` sur les classes/propriétés/individus des deux exercices (prédicats/classes **typés** `rdfs:Property`/`rdfs:Class` — le contrôle de plausibilité IA exige 0 sujet non typé), noms propres **sans étiquette** (démo du repli), 3 maladies des corrigés libellées FR+EN ; **résolution côté backend** (`engine._label_index`/`_pick_label` : langue de l'app → sans étiquette → premier, déterministe après `canonicalize()`) — `lang` sur `infer`/`query`/`graph`/`list_exercises`/`load_exercise`, appliqué aux nouveaux faits, aux lignes de requête (diff sur valeurs brutes puis traduit), aux nœuds/arcs/attributs du graphe ; **énoncés traduits** (`enonce.en.md` optionnel, `enonce.md` = repli, titre du menu = 1er `#` de la langue) ; requêtes d'exercice sur **ressources** (plus de `rdfs:label ?libPat` — doublons) ; front : `lang` dans les bodies + `?lang=`, au changement de langue re-fetch infer/query/énoncé + **mise à jour in place** des DataSets vis (pas de reconstruction du réseau), éditeurs jamais touchés ; `rdfs:label` exclu des attributs masqués (déjà le libellé du nœud) ; recalibrage IA : `recettes` 774 faits / 108 entités (577/74 avant) ; 13 tests `TestLabelsI18n` (178 au total) ; version 0.5.1 |

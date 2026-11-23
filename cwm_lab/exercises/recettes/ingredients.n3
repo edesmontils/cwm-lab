@@ -16,31 +16,73 @@
 #   potassium (insuffisance rénale), fructane (IIH), cholestérol
 #   (hypercholestérolémie) — voir enonce.md et corriges/.
 #
+# Les libellés (rdfs:label) sont bilingues (@fr / @en) : l'interface
+# affiche celui de sa langue (repli : sans étiquette, puis le premier
+# libellé présent). NB : ingr:arachide, ingr:lait, ingr:oeuf et
+# ingr:poisson sont À LA FOIS composant allergène et ingrédient —
+# même URI, deux libellés par langue (le premier l'emporte à l'affichage).
+#
 # Valeurs : ordres de grandeur approximatifs, choisis pour le TP.
 # =====================================================================
 @prefix ingr: <http://example.org/ingredient#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 
+# ---------------- Types (ontologie bilingue) ----------------
+ingr:Allergene a rdfs:Class ; rdfs:label "allergène"@fr , "allergen"@en .
+ingr:Cereale   a rdfs:Class ; rdfs:label "céréale"@fr , "cereal grain"@en .
+ingr:Olea      a rdfs:Class ; rdfs:label "oléagineux"@fr , "nut / seed"@en .
+ingr:Laitier   a rdfs:Class ; rdfs:label "produit laitier"@fr , "dairy product"@en .
+ingr:Oeuf      a rdfs:Class ; rdfs:label "œuf"@fr , "egg"@en .
+ingr:Poisson   a rdfs:Class ; rdfs:label "poisson"@fr , "fish"@en .
+ingr:Condiment a rdfs:Class ; rdfs:label "condiment"@fr , "condiment"@en .
+ingr:Viande    a rdfs:Class ; rdfs:label "viande"@fr , "meat"@en .
+ingr:Legumineuse a rdfs:Class ; rdfs:label "légumineuse"@fr , "legume"@en .
+ingr:Legume    a rdfs:Class ; rdfs:label "légume"@fr , "vegetable"@en .
+ingr:Boisson   a rdfs:Class ; rdfs:label "boisson"@fr , "beverage"@en .
+
+# ---------------- Propriétés de composition ----------------
+# 100 g : la valeur est par 100 g d'ingrédient.
+ingr:contientAllergene a rdfs:Property ;
+  rdfs:label "contient l'allergène"@fr , "contains allergen"@en .
+ingr:contientSodium a rdfs:Property ;
+  rdfs:label "sodium (mg/100 g)"@fr , "sodium (mg/100 g)"@en .
+ingr:contientPurines a rdfs:Property ;
+  rdfs:label "purines (mg/100 g)"@fr , "purines (mg/100 g)"@en .
+ingr:contientSucre a rdfs:Property ;
+  rdfs:label "sucre (g/100 g)"@fr , "sugar (g/100 g)"@en .
+ingr:contientPotassium a rdfs:Property ;
+  rdfs:label "potassium (mg/100 g)"@fr , "potassium (mg/100 g)"@en .
+ingr:contientGrasSature a rdfs:Property ;
+  rdfs:label "gras saturés (g/100 g)"@fr , "saturated fat (g/100 g)"@en .
+ingr:contientCholestrol a rdfs:Property ;
+  rdfs:label "cholestérol (mg/100 g)"@fr , "cholesterol (mg/100 g)"@en .
+ingr:contientHistamine a rdfs:Property ;
+  rdfs:label "histamine (mg/100 g)"@fr , "histamine (mg/100 g)"@en .
+ingr:contientAlcool a rdfs:Property ;
+  rdfs:label "alcool (g/100 g)"@fr , "alcohol (g/100 g)"@en .
+ingr:contientFructane a rdfs:Property ;
+  rdfs:label "fructane (g/100 g)"@fr , "fructan (g/100 g)"@en .
+
 # ---------------- Allergènes (composants qualitatifs) ----------------
-ingr:gluten   a ingr:Allergene ; rdfs:label "gluten"@fr .
-ingr:arachide a ingr:Allergene ; rdfs:label "arachide"@fr .
-ingr:lait     a ingr:Allergene ; rdfs:label "lait"@fr .
-ingr:oeuf     a ingr:Allergene ; rdfs:label "œuf"@fr .
-ingr:poisson  a ingr:Allergene ; rdfs:label "poisson"@fr .
+ingr:gluten   a ingr:Allergene ; rdfs:label "gluten"@fr , "gluten"@en .
+ingr:arachide a ingr:Allergene ; rdfs:label "arachide"@fr , "peanut"@en .
+ingr:lait     a ingr:Allergene ; rdfs:label "lait"@fr , "milk"@en .
+ingr:oeuf     a ingr:Allergene ; rdfs:label "œuf"@fr , "egg"@en .
+ingr:poisson  a ingr:Allergene ; rdfs:label "poisson"@fr , "fish"@en .
 
 # ---------------- Ingrédients ----------------
 # Unités : sodium, purines, potassium, cholestérol, histamine en mg/100 g ;
 #          sucre, gras saturés, fructane, alcool en g/100 g.
 
 # -- Céréales et dérivés --
-ingr:farine a ingr:Cereale ; rdfs:label "farine de blé"@fr ;
+ingr:farine a ingr:Cereale ; rdfs:label "farine de blé"@fr , "wheat flour"@en ;
   ingr:contientAllergene ingr:gluten ;
   ingr:contientSodium 2 ; ingr:contientPurines 15 ; ingr:contientSucre 1 ;
   ingr:contientPotassium 150 ; ingr:contientGrasSature 1 ;
   ingr:contientCholestrol 0 ; ingr:contientHistamine 0 ;
   ingr:contientAlcool 0 ; ingr:contientFructane 2 .
 
-ingr:biscuitSavoiard a ingr:Cereale ; rdfs:label "biscuit savoyard"@fr ;
+ingr:biscuitSavoiard a ingr:Cereale ; rdfs:label "biscuit savoyard"@fr , "sponge biscuit"@en ;
   ingr:contientAllergene ingr:gluten ;
   ingr:contientAllergene ingr:oeuf ;
   ingr:contientSodium 35 ; ingr:contientPurines 10 ; ingr:contientSucre 25 ;
@@ -51,7 +93,7 @@ ingr:biscuitSavoiard a ingr:Cereale ; rdfs:label "biscuit savoyard"@fr ;
 # Gluten « sans » : le gluten n'est pas dans la composition, mais la
 # ligne de fabrication est partagée — la contamination croisée est
 # modélisée comme présence du composant (cf. enonce.md, exo 5).
-ingr:farineSF a ingr:Cereale ; rdfs:label "farine « sans gluten » (ligne partagée)"@fr ;
+ingr:farineSF a ingr:Cereale ; rdfs:label "farine « sans gluten » (ligne partagée)"@fr , "'gluten-free' flour (shared line)"@en ;
   ingr:contientAllergene ingr:gluten ;
   ingr:contientSodium 10 ; ingr:contientPurines 5 ; ingr:contientSucre 2 ;
   ingr:contientPotassium 100 ; ingr:contientGrasSature 0 ;
@@ -59,7 +101,9 @@ ingr:farineSF a ingr:Cereale ; rdfs:label "farine « sans gluten » (ligne parta
   ingr:contientAlcool 0 ; ingr:contientFructane 0.3 .
 
 # -- Fruits à coque / oléagineux --
-ingr:arachide a ingr:Olea ; rdfs:label "pâte d'arachide"@fr ;
+# NB : même URI que l'allergène ingr:arachide — un second libellé
+# (le premier l'emporte à l'affichage).
+ingr:arachide a ingr:Olea ; rdfs:label "pâte d'arachide"@fr , "peanut butter"@en ;
   ingr:contientAllergene ingr:arachide ;
   ingr:contientSodium 5 ; ingr:contientPurines 200 ; ingr:contientSucre 6 ;
   ingr:contientPotassium 700 ; ingr:contientGrasSature 5 ;
@@ -67,35 +111,35 @@ ingr:arachide a ingr:Olea ; rdfs:label "pâte d'arachide"@fr ;
   ingr:contientAlcool 0 ; ingr:contientFructane 0.3 .
 
 # -- Produits laitiers --
-ingr:lait a ingr:Laitier ; rdfs:label "lait"@fr ;
+ingr:lait a ingr:Laitier ; rdfs:label "lait"@fr , "milk"@en ;
   ingr:contientAllergene ingr:lait ;
   ingr:contientSodium 44 ; ingr:contientPurines 3 ; ingr:contientSucre 5 ;
   ingr:contientPotassium 150 ; ingr:contientGrasSature 3.3 ;
   ingr:contientCholestrol 14 ; ingr:contientHistamine 0 ;
   ingr:contientAlcool 0 ; ingr:contientFructane 0.1 .
 
-ingr:beurre a ingr:Laitier ; rdfs:label "beurre"@fr ;
+ingr:beurre a ingr:Laitier ; rdfs:label "beurre"@fr , "butter"@en ;
   ingr:contientAllergene ingr:lait ;
   ingr:contientSodium 12 ; ingr:contientPurines 0 ; ingr:contientSucre 0 ;
   ingr:contientPotassium 24 ; ingr:contientGrasSature 51 ;
   ingr:contientCholestrol 74 ; ingr:contientHistamine 0 ;
   ingr:contientAlcool 0 ; ingr:contientFructane 0 .
 
-ingr:creme a ingr:Laitier ; rdfs:label "crème"@fr ;
+ingr:creme a ingr:Laitier ; rdfs:label "crème"@fr , "cream"@en ;
   ingr:contientAllergene ingr:lait ;
   ingr:contientSodium 40 ; ingr:contientPurines 0 ; ingr:contientSucre 2.5 ;
   ingr:contientPotassium 40 ; ingr:contientGrasSature 18 ;
   ingr:contientCholestrol 90 ; ingr:contientHistamine 0 ;
   ingr:contientAlcool 0 ; ingr:contientFructane 0.1 .
 
-ingr:fromage a ingr:Laitier ; rdfs:label "fromage (emmental)"@fr ;
+ingr:fromage a ingr:Laitier ; rdfs:label "fromage (emmental)"@fr , "cheese (emmental)"@en ;
   ingr:contientAllergene ingr:lait ;
   ingr:contientSodium 430 ; ingr:contientPurines 4 ; ingr:contientSucre 1 ;
   ingr:contientPotassium 48 ; ingr:contientGrasSature 20 ;
   ingr:contientCholestrol 74 ; ingr:contientHistamine 100 ;
   ingr:contientAlcool 0 ; ingr:contientFructane 0.1 .
 
-ingr:mascarpone a ingr:Laitier ; rdfs:label "mascarpone"@fr ;
+ingr:mascarpone a ingr:Laitier ; rdfs:label "mascarpone"@fr , "mascarpone"@en ;
   ingr:contientAllergene ingr:lait ;
   ingr:contientSodium 50 ; ingr:contientPurines 4 ; ingr:contientSucre 0 ;
   ingr:contientPotassium 30 ; ingr:contientGrasSature 24 ;
@@ -103,119 +147,119 @@ ingr:mascarpone a ingr:Laitier ; rdfs:label "mascarpone"@fr ;
   ingr:contientAlcool 0 ; ingr:contientFructane 0.1 .
 
 # -- Divers --
-ingr:oeuf a ingr:Oeuf ; rdfs:label "œuf"@fr ;
+ingr:oeuf a ingr:Oeuf ; rdfs:label "œuf"@fr , "egg"@en ;
   ingr:contientAllergene ingr:oeuf ;
   ingr:contientSodium 140 ; ingr:contientPurines 3 ; ingr:contientSucre 0 ;
   ingr:contientPotassium 140 ; ingr:contientGrasSature 3 ;
   ingr:contientCholestrol 373 ; ingr:contientHistamine 0 ;
   ingr:contientAlcool 0 ; ingr:contientFructane 0 .
 
-ingr:thon a ingr:Poisson ; rdfs:label "thon en boîte"@fr ;
+ingr:thon a ingr:Poisson ; rdfs:label "thon en boîte"@fr , "canned tuna"@en ;
   ingr:contientAllergene ingr:poisson ;
   ingr:contientSodium 500 ; ingr:contientPurines 240 ; ingr:contientSucre 0 ;
   ingr:contientPotassium 250 ; ingr:contientGrasSature 7 ;
   ingr:contientCholestrol 55 ; ingr:contientHistamine 400 ;
   ingr:contientAlcool 0 ; ingr:contientFructane 0.1 .
 
-ingr:saumon a ingr:Poisson ; rdfs:label "saumon frais"@fr ;
+ingr:saumon a ingr:Poisson ; rdfs:label "saumon frais"@fr , "fresh salmon"@en ;
   ingr:contientAllergene ingr:poisson ;
   ingr:contientSodium 60 ; ingr:contientPurines 250 ; ingr:contientSucre 0 ;
   ingr:contientPotassium 330 ; ingr:contientGrasSature 5 ;
   ingr:contientCholestrol 60 ; ingr:contientHistamine 300 ;
   ingr:contientAlcool 0 ; ingr:contientFructane 0.1 .
 
-ingr:saucePoisson a ingr:Condiment ; rdfs:label "sauce au poisson"@fr ;
+ingr:saucePoisson a ingr:Condiment ; rdfs:label "sauce au poisson"@fr , "fish sauce"@en ;
   ingr:contientAllergene ingr:poisson ;
   ingr:contientSodium 3000 ; ingr:contientPurines 200 ; ingr:contientSucre 0 ;
   ingr:contientPotassium 100 ; ingr:contientGrasSature 0 ;
   ingr:contientCholestrol 0 ; ingr:contientHistamine 500 ;
   ingr:contientAlcool 0 ; ingr:contientFructane 0.1 .
 
-ingr:poulet a ingr:Viande ; rdfs:label "poulet"@fr ;
+ingr:poulet a ingr:Viande ; rdfs:label "poulet"@fr , "chicken"@en ;
   ingr:contientSodium 50 ; ingr:contientPurines 130 ; ingr:contientSucre 0 ;
   ingr:contientPotassium 330 ; ingr:contientGrasSature 2.5 ;
   ingr:contientCholestrol 95 ; ingr:contientHistamine 10 ;
   ingr:contientAlcool 0 ; ingr:contientFructane 0 .
 
-ingr:lentilles a ingr:Legumineuse ; rdfs:label "lentilles (cuites)"@fr ;
+ingr:lentilles a ingr:Legumineuse ; rdfs:label "lentilles (cuites)"@fr , "lentils (cooked)"@en ;
   ingr:contientSodium 3 ; ingr:contientPurines 180 ; ingr:contientSucre 0.5 ;
   ingr:contientPotassium 370 ; ingr:contientGrasSature 0.4 ;
   ingr:contientCholestrol 0 ; ingr:contientHistamine 0 ;
   ingr:contientAlcool 0 ; ingr:contientFructane 3 .
 
-ingr:olives a ingr:Legume ; rdfs:label "olives vertes"@fr ;
+ingr:olives a ingr:Legume ; rdfs:label "olives vertes"@fr , "green olives"@en ;
   ingr:contientSodium 1740 ; ingr:contientPurines 10 ; ingr:contientSucre 1 ;
   ingr:contientPotassium 260 ; ingr:contientGrasSature 0.1 ;
   ingr:contientCholestrol 0 ; ingr:contientHistamine 30 ;
   ingr:contientAlcool 0 ; ingr:contientFructane 0.5 .
 
-ingr:tomate a ingr:Legume ; rdfs:label "tomate"@fr ;
+ingr:tomate a ingr:Legume ; rdfs:label "tomate"@fr , "tomato"@en ;
   ingr:contientSodium 1 ; ingr:contientPurines 9 ; ingr:contientSucre 2.6 ;
   ingr:contientPotassium 237 ; ingr:contientGrasSature 0 ;
   ingr:contientCholestrol 0 ; ingr:contientHistamine 10 ;
   ingr:contientAlcool 0 ; ingr:contientFructane 0.5 .
 
-ingr:oignon a ingr:Legume ; rdfs:label "oignon"@fr ;
+ingr:oignon a ingr:Legume ; rdfs:label "oignon"@fr , "onion"@en ;
   ingr:contientSodium 4 ; ingr:contientPurines 6 ; ingr:contientSucre 2 ;
   ingr:contientPotassium 146 ; ingr:contientGrasSature 0 ;
   ingr:contientCholestrol 0 ; ingr:contientHistamine 10 ;
   ingr:contientAlcool 0 ; ingr:contientFructane 5 .
 
-ingr:brocoli a ingr:Legume ; rdfs:label "brocoli"@fr ;
+ingr:brocoli a ingr:Legume ; rdfs:label "brocoli"@fr , "broccoli"@en ;
   ingr:contientSodium 30 ; ingr:contientPurines 17 ; ingr:contientSucre 1 ;
   ingr:contientPotassium 350 ; ingr:contientGrasSature 0 ;
   ingr:contientCholestrol 0 ; ingr:contientHistamine 0 ;
   ingr:contientAlcool 0 ; ingr:contientFructane 0.5 .
 
-ingr:pommeTerre a ingr:Legume ; rdfs:label "pomme de terre"@fr ;
+ingr:pommeTerre a ingr:Legume ; rdfs:label "pomme de terre"@fr , "potato"@en ;
   ingr:contientSodium 35 ; ingr:contientPurines 5 ; ingr:contientSucre 1 ;
   ingr:contientPotassium 350 ; ingr:contientGrasSature 0 ;
   ingr:contientCholestrol 0 ; ingr:contientHistamine 0 ;
   ingr:contientAlcool 0 ; ingr:contientFructane 0 .
 
-ingr:haricotsVerts a ingr:Legume ; rdfs:label "haricots verts"@fr ;
+ingr:haricotsVerts a ingr:Legume ; rdfs:label "haricots verts"@fr , "green beans"@en ;
   ingr:contientSodium 20 ; ingr:contientPurines 20 ; ingr:contientSucre 1.8 ;
   ingr:contientPotassium 360 ; ingr:contientGrasSature 0 ;
   ingr:contientCholestrol 0 ; ingr:contientHistamine 0 ;
   ingr:contientAlcool 0 ; ingr:contientFructane 0.1 .
 
-ingr:huileOlive a ingr:Condiment ; rdfs:label "huile d'olive"@fr ;
+ingr:huileOlive a ingr:Condiment ; rdfs:label "huile d'olive"@fr , "olive oil"@en ;
   ingr:contientSodium 0 ; ingr:contientPurines 0 ; ingr:contientSucre 0 ;
   ingr:contientPotassium 0 ; ingr:contientGrasSature 0 ;
   ingr:contientCholestrol 0 ; ingr:contientHistamine 0 ;
   ingr:contientAlcool 0 ; ingr:contientFructane 0 .
 
-ingr:sauceCoco a ingr:Condiment ; rdfs:label "lait de coco"@fr ;
+ingr:sauceCoco a ingr:Condiment ; rdfs:label "lait de coco"@fr , "coconut milk"@en ;
   ingr:contientSodium 5 ; ingr:contientPurines 0 ; ingr:contientSucre 2.5 ;
   ingr:contientPotassium 240 ; ingr:contientGrasSature 17 ;
   ingr:contientCholestrol 0 ; ingr:contientHistamine 0 ;
   ingr:contientAlcool 0 ; ingr:contientFructane 0.1 .
 
-ingr:sucre a ingr:Condiment ; rdfs:label "sucre"@fr ;
+ingr:sucre a ingr:Condiment ; rdfs:label "sucre"@fr , "sugar"@en ;
   ingr:contientSodium 0 ; ingr:contientPurines 0 ; ingr:contientSucre 100 ;
   ingr:contientPotassium 0 ; ingr:contientGrasSature 0 ;
   ingr:contientCholestrol 0 ; ingr:contientHistamine 0 ;
   ingr:contientAlcool 0 ; ingr:contientFructane 0 .
 
-ingr:cafe a ingr:Boisson ; rdfs:label "café (liquide)"@fr ;
+ingr:cafe a ingr:Boisson ; rdfs:label "café (liquide)"@fr , "coffee (liquid)"@en ;
   ingr:contientSodium 5 ; ingr:contientPurines 0 ; ingr:contientSucre 0 ;
   ingr:contientPotassium 212 ; ingr:contientGrasSature 0 ;
   ingr:contientCholestrol 0 ; ingr:contientHistamine 30 ;
   ingr:contientAlcool 0 ; ingr:contientFructane 0 .
 
-ingr:cacao a ingr:Condiment ; rdfs:label "cacao en poudre"@fr ;
+ingr:cacao a ingr:Condiment ; rdfs:label "cacao en poudre"@fr , "cocoa powder"@en ;
   ingr:contientSodium 4 ; ingr:contientPurines 10 ; ingr:contientSucre 2 ;
   ingr:contientPotassium 630 ; ingr:contientGrasSature 2.5 ;
   ingr:contientCholestrol 0 ; ingr:contientHistamine 0 ;
   ingr:contientAlcool 0 ; ingr:contientFructane 0.1 .
 
-ingr:sel a ingr:Condiment ; rdfs:label "sel"@fr ;
+ingr:sel a ingr:Condiment ; rdfs:label "sel"@fr , "salt"@en ;
   ingr:contientSodium 38758 ; ingr:contientPurines 0 ; ingr:contientSucre 0 ;
   ingr:contientPotassium 0 ; ingr:contientGrasSature 0 ;
   ingr:contientCholestrol 0 ; ingr:contientHistamine 0 ;
   ingr:contientAlcool 0 ; ingr:contientFructane 0 .
 
-ingr:vinBlanc a ingr:Boisson ; rdfs:label "vin blanc"@fr ;
+ingr:vinBlanc a ingr:Boisson ; rdfs:label "vin blanc"@fr , "white wine"@en ;
   ingr:contientSodium 2 ; ingr:contientPurines 30 ; ingr:contientSucre 2 ;
   ingr:contientPotassium 70 ; ingr:contientGrasSature 0 ;
   ingr:contientCholestrol 0 ; ingr:contientHistamine 80 ;

@@ -14,32 +14,66 @@
 #   2. Conditions à SEUIL (maladies métaboliques) :
 #      l'apport du nutriment par portion ne doit pas dépasser un
 #      seuil, déclaré en données (med:<maladie> med:seuil<X> <valeur>).
+#
+# Les libellés (rdfs:label) sont bilingues (@fr / @en) : l'interface
+# affiche celui de sa langue. Les noms des patients restent sans
+# étiquette (pareils dans les deux langues). Les propriétés
+# med:seuilPotassium / seuilFructane / seuilCholestrol sont
+# réservées aux exercices (corriges/) — déclarées ici pour leurs
+# libellés.
 # =====================================================================
 @prefix med: <http://example.org/medical#> .
 @prefix ingr: <http://example.org/ingredient#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 
 # ---------------- Types ----------------
-med:Allergie  a rdfs:Class ; rdfs:label "allergie / intolérance (règle absolue)"@fr .
-med:Maladie   a rdfs:Class ; rdfs:label "maladie à seuil alimentaire"@fr .
-med:Patient   a rdfs:Class .
-med:absolu    a med:TypeDeRegime .
-med:seuil     a med:TypeDeRegime .
+med:Allergie  a rdfs:Class ; rdfs:label "allergie / intolérance (règle absolue)"@fr , "allergy / intolerance (absolute rule)"@en .
+med:Maladie   a rdfs:Class ; rdfs:label "maladie à seuil alimentaire"@fr , "food-threshold disease"@en .
+med:Patient   a rdfs:Class ; rdfs:label "patient"@fr , "patient"@en .
+med:TypeDeRegime a rdfs:Class ; rdfs:label "type de régime"@fr , "diet type"@en .
+med:absolu    a med:TypeDeRegime ; rdfs:label "absolu (interdiction)"@fr , "absolute (forbidden)"@en .
+med:seuil     a med:TypeDeRegime ; rdfs:label "à seuil"@fr , "threshold"@en .
+
+# ---------------- Propriétés (ontologie bilingue) ----------------
+med:provoque a rdfs:Property ; rdfs:label "provoque"@fr , "triggers"@en .
+med:presente a rdfs:Property ; rdfs:label "présente"@fr , "has"@en .
+med:type a rdfs:Property ; rdfs:label "type"@fr , "type"@en .
+med:contreIndication a rdfs:Property ;
+  rdfs:label "contre-indication"@fr , "contraindication"@en .
+med:seuilSodium a rdfs:Property ;
+  rdfs:label "seuil sodium (mg/portion)"@fr , "sodium threshold (mg/portion)"@en .
+med:seuilPurines a rdfs:Property ;
+  rdfs:label "seuil purines (mg/portion)"@fr , "purine threshold (mg/portion)"@en .
+med:seuilSucre a rdfs:Property ;
+  rdfs:label "seuil sucre (g/portion)"@fr , "sugar threshold (g/portion)"@en .
+med:seuilGrasSature a rdfs:Property ;
+  rdfs:label "seuil gras saturés (g/portion)"@fr , "saturated fat threshold (g/portion)"@en .
+med:seuilHistamine a rdfs:Property ;
+  rdfs:label "seuil histamine (mg/portion)"@fr , "histamine threshold (mg/portion)"@en .
+med:seuilAlcool a rdfs:Property ;
+  rdfs:label "seuil alcool (g/portion)"@fr , "alcohol threshold (g/portion)"@en .
+# Réservés aux exercices (corriges/) :
+med:seuilPotassium a rdfs:Property ;
+  rdfs:label "seuil potassium (mg/portion)"@fr , "potassium threshold (mg/portion)"@en .
+med:seuilFructane a rdfs:Property ;
+  rdfs:label "seuil fructane (g/portion)"@fr , "fructan threshold (g/portion)"@en .
+med:seuilCholestrol a rdfs:Property ;
+  rdfs:label "seuil cholestérol (mg/portion)"@fr , "cholesterol threshold (mg/portion)"@en .
 
 # ---------------- Conditions absolues (règle d'interdiction du composant) ----
-med:coeliaquie a med:Allergie ; rdfs:label "maladie cœliaque (gluten)"@fr ;
+med:coeliaquie a med:Allergie ; rdfs:label "maladie cœliaque (gluten)"@fr , "coeliac disease (gluten)"@en ;
   med:type med:absolu .
 
-med:allergieArachide a med:Allergie ; rdfs:label "allergie à l'arachide"@fr ;
+med:allergieArachide a med:Allergie ; rdfs:label "allergie à l'arachide"@fr , "peanut allergy"@en ;
   med:type med:absolu .
 
-med:allergieLait a med:Allergie ; rdfs:label "allergie au lait"@fr ;
+med:allergieLait a med:Allergie ; rdfs:label "allergie au lait"@fr , "milk allergy"@en ;
   med:type med:absolu .
 
-med:allergieOeuf a med:Allergie ; rdfs:label "allergie à l'œuf"@fr ;
+med:allergieOeuf a med:Allergie ; rdfs:label "allergie à l'œuf"@fr , "egg allergy"@en ;
   med:type med:absolu .
 
-med:allergiePoisson a med:Allergie ; rdfs:label "allergie au poisson"@fr ;
+med:allergiePoisson a med:Allergie ; rdfs:label "allergie au poisson"@fr , "fish allergy"@en ;
   med:type med:absolu .
 
 # Lien composant (espace ingr:) -> condition (espace med:) :
@@ -52,29 +86,29 @@ ingr:poisson  med:provoque med:allergiePoisson .
 
 # ---------------- Conditions à seuil (règles de comparaison numérique) ------
 # Seuils par PORTION (un repas) : valeurs à débattre et à caler en TP.
-med:hypertension a med:Maladie ; rdfs:label "hypertension (sodium)"@fr ;
+med:hypertension a med:Maladie ; rdfs:label "hypertension (sodium)"@fr , "hypertension (sodium)"@en ;
   med:type med:seuil ;
   med:seuilSodium 1000 .        # mg de sodium / portion
 
-med:goutte a med:Maladie ; rdfs:label "goutte (purines)"@fr ;
+med:goutte a med:Maladie ; rdfs:label "goutte (purines)"@fr , "gout (purines)"@en ;
   med:type med:seuil ;
   med:seuilPurines 150 .        # mg de purines / portion
 
-med:diabete a med:Maladie ; rdfs:label "diabète (sucres)"@fr ;
+med:diabete a med:Maladie ; rdfs:label "diabète (sucres)"@fr , "diabetes (sugars)"@en ;
   med:type med:seuil ;
   med:seuilSucre 15 .           # g de sucre / portion
 
-med:cardiopathie a med:Maladie ; rdfs:label "cardiopathie (gras saturés)"@fr ;
+med:cardiopathie a med:Maladie ; rdfs:label "cardiopathie (gras saturés)"@fr , "heart disease (saturated fat)"@en ;
   med:type med:seuil ;
   med:seuilGrasSature 15 .      # g de gras saturés / portion
 
-med:intoleranceHistamine a med:Maladie ; rdfs:label "intolérance à l'histamine"@fr ;
+med:intoleranceHistamine a med:Maladie ; rdfs:label "intolérance à l'histamine"@fr , "histamine intolerance"@en ;
   med:type med:seuil ;
   med:seuilHistamine 100 .      # mg d'histamine / portion
 
 # Seuil à 0 : « règle absolue par seuil nul » — la moindre contribution
 # d'alcool (18 g pour le poulet au vin blanc) dépasse le seuil.
-med:cirrhose a med:Maladie ; rdfs:label "cirrhose (alcool)"@fr ;
+med:cirrhose a med:Maladie ; rdfs:label "cirrhose (alcool)"@fr , "cirrhosis (alcohol)"@en ;
   med:type med:seuil ;
   med:seuilAlcool 0 .           # g d'alcool / portion
 

@@ -305,6 +305,78 @@ def _term_str(term):
     return value if isinstance(value, str) else str(term)
 
 
+#: URI de ``rdfs:label`` — libellé bilingue des ontologies d'exercice
+#: (``@fr`` / ``@en``). Résolu côté backend dans la langue de
+#: l'application (i18n P10.1) : le front n'affiche que des chaînes
+#: prêtes à l'emploi.
+LABEL_URI = "http://www.w3.org/2000/01/rdf-schema#label"
+
+#: Langues reconnues pour le choix du libellé (comme
+#: :data:`cwm_lab.ia.LANGS`) — toute autre valeur replie sur ``"fr"``.
+LABEL_LANGS = ("fr", "en")
+
+
+def _norm_lang(lang):
+    """Langue d'affichage : ``"fr"`` / ``"en"`` (repli ``"fr"``)."""
+    return lang if lang in LABEL_LANGS else "fr"
+
+
+def _pick_label(labels, lang):
+    """Libellé retenu d'une entité parmi ses ``rdfs:label``.
+
+    ``labels`` : liste ``[(étiquette_de_langue_ou_None, valeur), …]``
+    dans l'ordre du document. Choix en trois replis :
+
+    1. le libellé de la **langue de l'application** ;
+    2. à défaut, le libellé **sans étiquette** ;
+    3. à défaut, le **premier** libellé présent.
+
+    NB : après ``canonicalize()`` l'ordre des énoncés n'est plus celui
+    du document (tri par hash du store) — d'où les deux premiers
+    replis, déterministes sans dépendre de l'ordre.
+    """
+    for tag, value in labels:
+        if tag == lang:
+            return value
+    for tag, value in labels:
+        if tag is None:
+            return value
+    return labels[0][1]
+
+
+def _label_index(formula, lang="fr"):
+    """Index ``{URI absolue : libellé choisi}`` des ``rdfs:label`` de la
+    formule (les libellés des **données** — pas de la clôture, qui n'en
+    produit pas de nouveaux).
+
+    ``lang`` : langue de l'application (repli ``"fr"``) — voir
+    :func:`_pick_label`. Un sujet sans ``rdfs:label`` n'entre pas dans
+    l'index : l'appelant replie sur le libellé court de l'URI
+    (``_short_uri``).
+    """
+    lang = _norm_lang(lang)
+    per_uri = {}
+    for s in formula.statements:
+        pred = s[1]
+        if not isinstance(pred, (Symbol, Fragment)) or \
+           pred.uriref() != LABEL_URI:
+            continue
+        subj, obj = s[2], s[3]
+        if not isinstance(subj, (Symbol, Fragment)) or \
+           not isinstance(obj, Literal):
+            continue
+        per_uri.setdefault(subj.uriref(), []).append(
+            (getattr(obj, "lang", None), _term_str(obj)))
+    return {uri: _pick_label(labs, lang) for uri, labs in per_uri.items()}
+
+
+def _translate(values, labels):
+    """Remplace, dans la séquence de chaînes ``values``, chaque URI qui
+    possède un libellé choisi — les autres valeurs passent intactes
+    (littéraux, nœuds vides, IRI non libellés)."""
+    return [labels.get(v, v) for v in values]
+
+
 def _triple_keys(formula):
     """Ensemble de clés ``(s, p, o)`` (chaînes) des énoncés *de niveau
     supérieur* de la formule — base du diff « nouveaux faits ». Les
@@ -330,7 +402,7 @@ def _infer_result(errors=None, timeout=False, new_facts=(),
 
 
 def infer(kb_text, rules_text, base_uri=DEFAULT_BASE_URI, mode="think",
-          store_rules=False, timeout=10.0):
+          store_rules=False, timeout=10.0, lang="fr"):
     """Raisonnement par chaînage avant sur une base de données + règles.
 
     Deux documents sont parsés dans le même store :
@@ -354,6 +426,10 @@ def infer(kb_text, rules_text, base_uri=DEFAULT_BASE_URI, mode="think",
       règles restent dans leur document (``cwm --think=``). Elles sont
       toujours exclues du diff des « nouveaux faits ».
     - ``timeout`` : délai maximum en secondes (``0`` = sans limite).
+    - ``lang`` : langue d'affichage (``"fr"`` / ``"en"``, repli ``"fr"``)
+      — les IRI des ``new_facts`` qui possèdent un ``rdfs:label`` dans
+      la KB sont remplacés par le libellé choisi (présentation seule :
+      le diff est calculé sur les IRI bruts).
 
     Renvoie un dictionnaire JSON-serialisable :
 
@@ -362,7 +438,8 @@ def infer(kb_text, rules_text, base_uri=DEFAULT_BASE_URI, mode="think",
       "rules", "line", "column", "message"}`` ;
     - ``timeout`` (bool) : la clôture n'a pas convergé dans le délai ;
     - ``new_facts`` (list) : triples nouveaux ``[s, p, o]`` (chaînes),
-      triés, excluant les énoncés-règles ;
+      triés, excluant les énoncés-règles — IRI remplacés par leur
+      libellé ``rdfs:label`` choisi dans ``lang`` s'il existe ;
     - ``inconsistent`` (bool) : la clôture contient la constante
       ``log:false`` (sémantique CWM de l'incohérence) ;
     - ``closure_statements`` (int) : nb d'énoncés de niveau supérieur
@@ -471,10 +548,15 @@ def infer(kb_text, rules_text, base_uri=DEFAULT_BASE_URI, mode="think",
     new_facts = {t for t in new_facts if t[1] != IMPLIES_URI}
     inconsistent = any(LOG_FALSE_URI in t for t in after)
     rules_in_closure = sum(1 for t in after if t[1] == IMPLIES_URI)
-    return _infer_result(new_facts=new_facts, inconsistent=inconsistent,
-                         closure_statements=len(after),
-                         rules_in_closure=rules_in_closure,
-                         elapsed_ms=elapsed_ms)
+    # Libellés d'affichage (i18n) : IRI → rdfs:label choisi dans la
+    # langue de l'application (le diff a été calculé sur les IRI bruts).
+    labels = _label_index(kb_closed, lang)
+    return _infer_result(
+        new_facts=[_translate(list(t), labels) for t in new_facts],
+        inconsistent=inconsistent,
+        closure_statements=len(after),
+        rules_in_closure=rules_in_closure,
+        elapsed_ms=elapsed_ms)
 
 
 # ----------------------------------------------------------------------
@@ -693,7 +775,8 @@ def _query_result(errors=None, timeout=False, query_type=None,
 
 
 def query(kb_text, query_text, rules_text="", base_uri=DEFAULT_BASE_URI,
-          reason=False, mode="think", store_rules=False, timeout=10.0):
+          reason=False, mode="think", store_rules=False, timeout=10.0,
+          lang="fr"):
     """Exécute une requête SPARQL (``SELECT`` ou ``ASK``) sur une base de
     données, avec ou sans raisonnement préalable.
 
@@ -713,7 +796,12 @@ def query(kb_text, query_text, rules_text="", base_uri=DEFAULT_BASE_URI,
     les résultats bruts sont quand même renvoyés.
 
     Paramètres : ``mode`` / ``store_rules`` / ``timeout`` — mêmes
-    sémantiques que :func:`infer`.
+    sémantiques que :func:`infer` ; ``lang`` (``"fr"`` / ``"en"``,
+    repli ``"fr"``) — langue de l'application pour les libellés :
+    chaque **IRI** des lignes qui possède un ``rdfs:label`` dans la KB
+    est remplacé par le libellé choisi (les littéraux et les IRI non
+    libellés passent intactes ; le diff ``new_rows`` est calculé sur
+    les valeurs brutes puis traduit pareil).
 
     Renvoie un dictionnaire JSON-serialisable :
 
@@ -721,7 +809,8 @@ def query(kb_text, query_text, rules_text="", base_uri=DEFAULT_BASE_URI,
       ``timeout`` — comme :func:`infer` ;
     - ``query_type`` : ``"SelectQuery"`` ou ``"AskQuery"`` ;
     - ``variables`` (list) : variables de la clause SELECT, en ordre ;
-    - ``rows_raw`` (list) : lignes ``[v1, …]`` (chaînes) sur la KB brute ;
+    - ``rows_raw`` (list) : lignes ``[v1, …]`` (chaînes) sur la KB brute
+      (IRI à libellé remplacés par leur libellé choisi dans ``lang``) ;
     - ``ask_raw`` (bool) : réponse de l'ASK sur la KB brute ;
     - ``rows_reasoned`` (list ou None) : lignes sur la clôture (``None``
       si pas de raisonnement, ou timeout) ;
@@ -770,6 +859,10 @@ def query(kb_text, query_text, rules_text="", base_uri=DEFAULT_BASE_URI,
             "message": "erreur interne : %s: %s" % (type(e).__name__, e),
         }])
 
+    # Libellés d'affichage (i18n) : IRI → rdfs:label choisi dans la
+    # langue de l'application (appliqué aux lignes ci-dessous).
+    labels = _label_index(kb_closed, lang)
+
     # --- requête SPARQL -------------------------------------------------
     if not query_text.strip():
         return _query_result(errors=[{
@@ -804,9 +897,10 @@ def query(kb_text, query_text, rules_text="", base_uri=DEFAULT_BASE_URI,
         }])
     variables = qvars or _row_keys(rows_raw_dicts)
     if not reason:
+        grid = sorted(_rows_to_grid(variables, rows_raw_dicts))
         return _query_result(query_type=qtype, variables=variables,
-                             rows_raw=sorted(_rows_to_grid(variables,
-                                                           rows_raw_dicts)),
+                             rows_raw=[_translate(row, labels)
+                                       for row in grid],
                              ask_raw=ask_raw,
                              elapsed_ms=int((time.monotonic() - start) * 1000))
 
@@ -891,6 +985,11 @@ def query(kb_text, query_text, rules_text="", base_uri=DEFAULT_BASE_URI,
     rows_raw = sorted(_rows_to_grid(variables, rows_raw_dicts))
     rows_reasoned = sorted(_rows_to_grid(variables, rows_reasoned_dicts))
     new_rows = [r for r in rows_reasoned if r not in rows_raw]
+    # Diff calculé sur les valeurs brutes — puis les trois grilles sont
+    # traduites de la même façon (libellés choisis dans ``lang``).
+    rows_raw = [_translate(r, labels) for r in rows_raw]
+    rows_reasoned = [_translate(r, labels) for r in rows_reasoned]
+    new_rows = [_translate(r, labels) for r in new_rows]
     return _query_result(
         query_type=qtype, variables=variables,
         rows_raw=rows_raw, ask_raw=ask_raw,
@@ -1733,6 +1832,9 @@ def render_markdown(text):
 #:
 #: - ``enonce.md``    : l'énoncé (obligatoire) — son premier titre
 #:   ``# …`` sert de libellé ;
+#: - ``enonce.en.md`` : l'énoncé en anglais (**optionnel**) — servi
+#:   quand l'application est en anglais (``lang="en"``) ; à défaut,
+#:   l'énoncé français ;
 #: - ``*.n3``         : les fichiers de données — ``regles.n3`` va dans
 #:   l'éditeur « règles », les autres sont concaténés (ordre
 #:   alphabétique) dans l'éditeur « données » ;
@@ -1752,10 +1854,36 @@ def _exercise_error(message, name=None):
             "name": name}
 
 
-def list_exercises():
+def _enonce_path(d, lang):
+    """Fichier d'énoncé de l'exercice dans ``lang`` : ``enonce.en.md``
+    s'il existe (langue ``"en"``), sinon l'``enonce.md`` (obligatoire)."""
+    if _norm_lang(lang) == "en":
+        p = os.path.join(d, "enonce.en.md")
+        if os.path.isfile(p):
+            return p
+    return os.path.join(d, "enonce.md")
+
+
+def _enonce_title(path, fallback):
+    """Premier titre ``# …`` de l'énoncé (``fallback`` sinon)."""
+    try:
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                if line.startswith("# "):
+                    return line[2:].strip()
+    except OSError:
+        pass
+    return fallback
+
+
+def list_exercises(lang="fr"):
     """Liste les exercices disponibles (sous-dossiers de
     :data:`EXERCISES_DIR` portant un ``enonce.md``), par ordre
     alphabétique.
+
+    ``lang`` (``"fr"`` / ``"en"``, repli ``"fr"``) : langue de
+    l'application — ``title`` est lu dans l'énoncé de cette langue
+    (``enonce.en.md`` s'il existe, sinon ``enonce.md``).
 
     Renvoie ``{"ok": True, "exercises": [{"name", "title", "files"},
     …]}`` — ``title`` est le premier titre ``# …`` de l'énoncé,
@@ -1770,23 +1898,20 @@ def list_exercises():
             enonce = os.path.join(d, "enonce.md")
             if not os.path.isfile(enonce):
                 continue
-            title = name
-            try:
-                with open(enonce, encoding="utf-8") as f:
-                    for line in f:
-                        if line.startswith("# "):
-                            title = line[2:].strip()
-                            break
-            except OSError:
-                pass
+            title = _enonce_title(_enonce_path(d, lang), name)
             n3 = [f for f in os.listdir(d) if f.endswith(".n3")]
             exercises.append({"name": name, "title": title, "files": len(n3)})
     return {"ok": True, "exercises": exercises}
 
 
-def load_exercise(name):
+def load_exercise(name, lang="fr"):
     """Charge un exercice dans les éditeurs (voir la convention de
     :data:`EXERCISES_DIR`).
+
+    ``lang`` (``"fr"`` / ``"en"``, repli ``"fr"``) : langue de
+    l'application — l'énoncé servi est ``enonce.en.md`` s'il existe
+    (langue ``"en"``), sinon ``enonce.md`` (les données, règles et
+    préchargements sont communs aux deux langues).
 
     ``name`` est validé (pas de séparateur de chemin, pas de ``..``) —
     anti-traversée de dossier, comme le service des statiques. Les
@@ -1806,7 +1931,7 @@ def load_exercise(name):
     if not d.startswith(os.path.realpath(EXERCISES_DIR) + os.sep) or \
        not os.path.isdir(d):
         return _exercise_error("exercice inconnu : %r" % name, name=name)
-    enonce_path = os.path.join(d, "enonce.md")
+    enonce_path = _enonce_path(d, lang)
     if not os.path.isfile(enonce_path):
         return _exercise_error(
             "l'exercice %r n'a pas d'énoncé (enonce.md)" % name, name=name)
@@ -1936,7 +2061,7 @@ def _graph_statements(formula):
 
 
 def graph(kb_text, rules_text, base_uri=DEFAULT_BASE_URI, reason=False,
-          mode="think", timeout=10.0, hide_literals=False):
+          mode="think", timeout=10.0, hide_literals=False, lang="fr"):
     """Graphe des triples de la KB — et, si ``reason``, de sa clôture.
 
     Même parse que :func:`infer` : ``kb_text`` dans une formule,
@@ -1952,16 +2077,25 @@ def graph(kb_text, rules_text, base_uri=DEFAULT_BASE_URI, reason=False,
     ``title`` du sujet (bulle contextuelle). Les autres énoncés
     touchant un littéral sont simplement retirés du rendu.
 
+    ``lang`` (``"fr"`` / ``"en"``, repli ``"fr"``) : langue de
+    l'application pour les libellés (i18n P10.1) — un nœud-ressource
+    (et un prédicat d'arc / d'attribut) portant un ``rdfs:label`` dans
+    la KB s'affiche sous le libellé choisi, sinon sous le libellé
+    court de l'URI.
+
     Renvoie un dictionnaire JSON-serialisable :
 
     - ``ok`` (bool), ``errors`` (list, format habituel) ;
     - ``nodes`` : ``[{"id", "label", "kind" ("resource" | "literal" |
       "blank"), "inferred", "title"}, …]`` — ``id`` est la chaîne du
       terme (URI absolue / valeur littérale / nom de nœud vide) ;
+      ``label`` : le ``rdfs:label`` choisi dans ``lang`` si le
+      nœud-ressource en porte un, sinon le libellé court de l'URI ;
     - ``edges`` : ``[{"from", "to", "label", "inferred"}, …]`` — un
       arc par paire (sujet, objet) ; les prédicats multiples entre les
-      mêmes termes sont fusionnés dans ``label`` ; ``rdf:type`` se lit
-      ``a`` ;
+      mêmes termes sont fusionnés dans ``label`` (libellé ``rdfs:label``
+      du prédicat s'il existe, sinon libellé court) ; ``rdf:type`` se
+      lit ``a`` ;
     - ``attrs`` : ``{"id du sujet": ["prédicat valeur", …]}`` — les
       attributs masqués (vide si ``hide_literals`` est faux) ;
     - ``statement_count`` (int) : nb d'énoncés représentés ;
@@ -2006,6 +2140,10 @@ def graph(kb_text, rules_text, base_uri=DEFAULT_BASE_URI, reason=False,
                                                      % (type(e).__name__, e)}],
                 "nodes": [], "edges": [], "attrs": {}, "statement_count": 0,
                 "truncated": False, "elapsed_ms": 0}
+
+    # Libellés d'affichage (i18n) : ressources/prédicats → rdfs:label
+    # choisi dans la langue de l'application.
+    label_idx = _label_index(kb_closed, lang)
 
     raw_stmts = _graph_statements(kb_closed)
     raw_pairs = {(_term_str(s), _term_str(o)) for s, _, o in raw_stmts}
@@ -2083,9 +2221,12 @@ def graph(kb_text, rules_text, base_uri=DEFAULT_BASE_URI, reason=False,
         node = nodes.get(tstr)
         if node is None:
             kind = _term_kind(term)
+            label = _term_label(term, kind)
+            if kind == "resource":
+                label = label_idx.get(tstr, label)
             nodes[tstr] = node = {
                 "id": tstr,
-                "label": _term_label(term, kind),
+                "label": label,
                 "kind": kind,
                 "inferred": bool(reason and tstr not in raw_terms),
                 "title": _term_title(term, kind),
@@ -2120,6 +2261,11 @@ def graph(kb_text, rules_text, base_uri=DEFAULT_BASE_URI, reason=False,
         s_lit, o_lit = _is_literal(s), _is_literal(o)
         if hide_literals and (s_lit or o_lit):
             if o_lit and not s_lit:
+                # rdfs:label est déjà LE libellé du nœud : il ne se
+                # liste pas en attribut masqué (i18n P10.1)
+                if all(isinstance(p, (Symbol, Fragment))
+                       and p.uriref() == LABEL_URI for p in g["preds"]):
+                    continue
                 # énoncé « sujet prédicat littéral » : regroupé en
                 # attribut (pastille) sur le sujet
                 s_id = _node(s)
@@ -2127,7 +2273,7 @@ def graph(kb_text, rules_text, base_uri=DEFAULT_BASE_URI, reason=False,
                 for pred in g["preds"]:
                     pstr = _term_str(pred)
                     lab = ("type" if pstr == _RDF_TYPE_URI
-                           else _short_uri(pstr))
+                           else label_idx.get(pstr) or _short_uri(pstr))
                     item = lab + " " + value
                     if item not in attrs.setdefault(s_id, []):
                         attrs[s_id].append(item)
@@ -2137,14 +2283,16 @@ def graph(kb_text, rules_text, base_uri=DEFAULT_BASE_URI, reason=False,
         o_id = _node(o)
         if s_id == o_id:
             continue  # boucle dégénérée, peu lisible
-        labels = []
+        edge_labels = []
         for pred in g["preds"]:
             pstr = _term_str(pred)
-            lab = "a" if pstr == _RDF_TYPE_URI else _short_uri(pstr)
-            if lab not in labels:
-                labels.append(lab)
+            lab = ("a" if pstr == _RDF_TYPE_URI
+                   else label_idx.get(pstr) or _short_uri(pstr))
+            if lab not in edge_labels:
+                edge_labels.append(lab)
         edges.append({"from": s_id, "to": o_id,
-                      "label": " · ".join(labels), "inferred": inferred})
+                      "label": " · ".join(edge_labels),
+                      "inferred": inferred})
 
     # P7 : la bulle contextuelle du sujet liste les attributs masqués
     for node_id, items in attrs.items():
