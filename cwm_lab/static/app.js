@@ -1069,7 +1069,8 @@ function destroyGraph() {
 
 // Pastilles des attributs masqués (P7) : positionnées au-dessus de
 // chaque nœud qui en porte — recalculées à chaque dessin du réseau
-// (pan, zoom, physique), les pastilles suivent les nœuds.
+// (pan, zoom, physique), les pastilles suivent les nœuds ET leur
+// échelle (elles grandissent au zoom, comme les nœuds du canvas).
 function positionBadges() {
   graphBadges.innerHTML = "";
   if (!graphNetwork || !Object.keys(graphAttrs).length) return;
@@ -1083,6 +1084,12 @@ function positionBadges() {
   // du canvas — d'où translation = centre − position × scale.
   // Sans cette conversion, la pastille est décalée du nœud dès que
   // le graphe est recentré, zoomé ou pané.
+  //
+  // La pastille est traitée comme un élément dessiné **dans le monde**
+  // du graphe : sa taille ET son décalage depuis le centre du nœud
+  // sont multipliés par `scale` (comme le font les nœuds et les arcs
+  // du canvas), elle grandit donc au zoom et reste collée au coin du
+  // nœud à tout niveau de zoom.
   const scale = graphNetwork.getScale();
   const vp = graphNetwork.getViewPosition();
   const tx = w / 2 - vp.x * scale;
@@ -1098,8 +1105,9 @@ function positionBadges() {
     b.className = "attr-badge";
     b.textContent = items.length;
     b.title = items.join("\n");
-    b.style.left = (sx + 12) + "px";
-    b.style.top = (sy - 16) + "px";
+    b.style.left = (sx + 12 * scale) + "px";
+    b.style.top = (sy - 16 * scale) + "px";
+    b.style.transform = "translate(-50%, -100%) scale(" + scale + ")";
     graphBadges.appendChild(b);
   }
 }
