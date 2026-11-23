@@ -1,0 +1,31 @@
+# Corrigé — exercice : ajouter l'hypercholestérolémie
+# (cholestérol, seuil 200 mg / portion).
+# À charger ENSEMBLE avec la base. L'axe cholestérol est déjà dans
+# ingredients.n3 (œuf 373, poulet 95, crème 90, beurre 74…).
+@prefix rec:  <http://example.org/recette#> .
+@prefix ingr: <http://example.org/ingredient#> .
+@prefix med:  <http://example.org/medical#> .
+@prefix math: <http://www.w3.org/2000/10/swap/math#> .
+@prefix log:  <http://www.w3.org/2000/10/swap/log#> .
+
+med:hyperCholest a med:Maladie ; med:type med:seuil ;
+  med:seuilCholestrol 200 .
+
+{ ?r rec:contient ?u . ?u rec:ingredient ?i . ?u rec:quantite ?q .
+  ?i ingr:contientCholestrol ?c .
+  (?q ?c) math:product ?p . (?p 100) math:quotient ?m }
+log:implies { ?u rec:contributionCholestrol ?m } .
+
+{ ?r rec:contient ?u . ?u rec:contributionCholestrol ?m .
+  ?m math:greaterThan ?s . med:hyperCholest med:seuilCholestrol ?s }
+log:implies { ?r med:contreIndication med:hyperCholest } .
+
+# Résultat attendu (régime ingrédient par ingrédient) :
+#   contre-indiquée : tiramisu (œuf 100 g -> 373),
+#                     crepes (œuf 150 g -> 559.5),
+#                     saladeNiceoise (œuf 60 g -> 223.8),
+#                     crepesSF (œuf 150 g -> 559.5).
+# Limite du régime : le pouletVinBlanc n'est PAS flaggé (meilleure
+# contribution : poulet 150 g -> 142.5), alors que son total (247)
+# dépasse le seuil.
+#ends

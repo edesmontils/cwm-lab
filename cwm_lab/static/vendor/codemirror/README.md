@@ -1,7 +1,7 @@
 # CodeMirror 6 — bundle local (P1)
 
 Ce dossier contient le bundle **CodeMirror 6** utilisé par l'outil TP
-(`lab/lab_web/static/app.js`), **vendu en local** : pas de CDN, aucune
+(`cwm_lab/static/app.js`), **vendu en local** : pas de CDN, aucune
 dépendance réseau au moment de l'exécution (décision actée dans
 `lab/ROADMAP.md`).
 

@@ -1,0 +1,31 @@
+# Corrigé — exercice : ajouter le syndrome de l'intestin irritable
+# (IIH, fructane, seuil 2 g / portion — régime « strict »).
+# À charger ENSEMBLE avec la base. L'axe fructane est déjà dans
+# ingredients.n3 (oignon 5 g/100 g, lentilles 3, blé 2, tomate 0.5…).
+@prefix rec:  <http://example.org/recette#> .
+@prefix ingr: <http://example.org/ingredient#> .
+@prefix med:  <http://example.org/medical#> .
+@prefix math: <http://www.w3.org/2000/10/swap/math#> .
+@prefix log:  <http://www.w3.org/2000/10/swap/log#> .
+
+med:IIH a med:Maladie ; med:type med:seuil ;
+  med:seuilFructane 2 .
+
+{ ?r rec:contient ?u . ?u rec:ingredient ?i . ?u rec:quantite ?q .
+  ?i ingr:contientFructane ?c .
+  (?q ?c) math:product ?p . (?p 100) math:quotient ?m }
+log:implies { ?u rec:contributionFructane ?m } .
+
+{ ?r rec:contient ?u . ?u rec:contributionFructane ?m .
+  ?m math:greaterThan ?s . med:IIH med:seuilFructane ?s }
+log:implies { ?r med:contreIndication med:IIH } .
+
+# Résultat attendu (régime ingrédient par ingrédient) :
+#   contre-indiquée : soupeTomate (oignon 50 g -> 2.5),
+#                     crepes (farine 200 g -> 4),
+#                     salmonLentilles (lentilles 150 g -> 4.5),
+#                     pouletVinBlanc (oignon 50 g -> 2.5).
+# Limite du régime : la niçoise (oignon 40 g -> 2.0) passe juste
+# SOUS le seuil (strictement supérieur requis), alors que son total
+# (3.32) le dépasse.
+#ends

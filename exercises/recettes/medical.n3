@@ -64,6 +64,20 @@ med:diabete a med:Maladie ; rdfs:label "diabète (sucres)"@fr ;
   med:type med:seuil ;
   med:seuilSucre 15 .           # g de sucre / portion
 
+med:cardiopathie a med:Maladie ; rdfs:label "cardiopathie (gras saturés)"@fr ;
+  med:type med:seuil ;
+  med:seuilGrasSature 15 .      # g de gras saturés / portion
+
+med:intoleranceHistamine a med:Maladie ; rdfs:label "intolérance à l'histamine"@fr ;
+  med:type med:seuil ;
+  med:seuilHistamine 100 .      # mg d'histamine / portion
+
+# Seuil à 0 : « règle absolue par seuil nul » — la moindre contribution
+# d'alcool (18 g pour le poulet au vin blanc) dépasse le seuil.
+med:cirrhose a med:Maladie ; rdfs:label "cirrhose (alcool)"@fr ;
+  med:type med:seuil ;
+  med:seuilAlcool 0 .           # g d'alcool / portion
+
 # ---------------- Patients ----------------
 # med:presente : le patient présente cette condition.
 med:alice a med:Patient ; rdfs:label "Alice" ;
@@ -74,5 +88,11 @@ med:bob a med:Patient ; rdfs:label "Bob" ;
 
 med:carole a med:Patient ; rdfs:label "Carole" ;
   med:presente med:diabete ; med:presente med:allergieLait .
+
+med:david a med:Patient ; rdfs:label "David" ;
+  med:presente med:cardiopathie ; med:presente med:intoleranceHistamine .
+
+med:eve a med:Patient ; rdfs:label "Eve" ;
+  med:presente med:cirrhose .
 
 #ends

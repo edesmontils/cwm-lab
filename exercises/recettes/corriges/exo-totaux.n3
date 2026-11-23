@@ -1,0 +1,49 @@
+# Corrigé — variante « totaux déclarés » : l'agrégation EXACTE.
+#
+# Le régime de la base (regles.n3) teste chaque ingrédient SEUL :
+# condition suffisante, pas nécessaire (cf. enonce.md).
+# Ici, le total par portion est déclaré en DONNÉES (comme une étiquette
+# nutritionnelle — c'est le choix que font les bases réelles), et la
+# règle compare ce total au seuil : le test devient exact.
+#
+# À charger ENSEMBLE avec la base (les deux régimes coexistent, mêmes
+# conclusions possibles). Les totaux sont la somme des contributions
+# — vérifiables à la main depuis ingredients.n3 et recettes.n3.
+#
+# Exemple type (exo « Franck ») : Franck n'a QUE l'hypertension.
+#   - régime de la base : il peut manger les crêpes (aucun ingrédient
+#     seul ne dépasse 1000 mg ; max = sel 2 g -> 775.16) ;
+#   - avec ce corrigé : le total des crêpes est 1039.26 mg > 1000
+#     -> contre-indiquée. L'erreur du régime simplifié devient visible.
+@prefix rec:  <http://example.org/recette#> .
+@prefix med:  <http://example.org/medical#> .
+@prefix math: <http://www.w3.org/2000/10/swap/math#> .
+@prefix log:  <http://www.w3.org/2000/10/swap/log#> .
+
+# ---- Totaux de sodium par portion (mg) ----
+rec:soupeTomate     rec:totalSodiumParPortion 779.66 .
+rec:gratinBrocoli   rec:totalSodiumParPortion 1694.24 .
+rec:salmonLentilles rec:totalSodiumParPortion 899.66 .
+rec:tiramisu        rec:totalSodiumParPortion 245.9 .
+rec:satay           rec:totalSodiumParPortion 926.58 .
+rec:crepes          rec:totalSodiumParPortion 1039.26 .
+rec:crepesSF        rec:totalSodiumParPortion 1052.76 .
+rec:saladeNiceoise  rec:totalSodiumParPortion 2433.66 .
+rec:pouletVinBlanc  rec:totalSodiumParPortion 897.56 .
+
+# ---- Règle : le total dépasse le seuil -> contre-indication ----
+{ ?r rec:totalSodiumParPortion ?t .
+  ?t math:greaterThan ?s .
+  med:hypertension med:seuilSodium ?s }
+log:implies { ?r med:contreIndication med:hypertension } .
+
+# Résultat attendu : l'hypertension frappe gratinBrocoli, saladeNiceoise,
+# crepes et crepesSF (ces deux dernières ne l'étaient PAS dans la base,
+# aucun ingrédient seul ne dépassant 1000 mg).
+#
+# Développements possibles pour les élèves :
+#   - idem pour les autres nutriments (le total histamine du satay est
+#     106 mg : le régime simplifié le laissait passer) ;
+#   - produire ces totaux par SPARQL (SUM) et les réinjecter comme
+#     patch — CWM est « le sed/awk du RDF » : chaîner les outils.
+#ends

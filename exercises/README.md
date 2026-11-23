@@ -1,4 +1,4 @@
-# lab/exercises/ — exercices du TP
+# exercises/ — exercices du TP
 
 Un **exercice** est un sous-dossier de ce répertoire. L'outil le
 découvre automatiquement (menu **Exercice** du bandeau) et le charge
@@ -20,7 +20,7 @@ cassé ne se charge pas (message d'erreur par document).
 | Dossier | Durée conseillée | Contenu |
 |---|---|---|
 | [`famille/`](famille/enonce.md) | ~30 min | échauffement : un graphe de 5 triples + la règle du grand-parent — parcourt toutes les fonctions de l'outil (parse, raisonnement, diff de requête, entraînement, preuve, altération) |
-| [`recettes/`](recettes/enonce.md) | ~60–90 min | exercice principal : contre-indications alimentaires calculées par règles N3 (allergènes absolus + nutriments à seuil, avec calculs `math:`) sur 7 recettes et 3 patients ; 5 questions + discussion des limites du modèle |
+| [`recettes/`](recettes/enonce.md) | ~60–90 min | exercice principal : contre-indications alimentaires calculées par règles N3 (allergènes absolus + nutriments à seuil, avec calculs `math:`) sur 9 recettes et 5 patients ; 6 exercices, corrigés (`corriges/`) + discussion des limites du modèle |
 
 **Guide enseignant** (déroulé 2 h, points de vigilance, barème) :
 [`GUIDE_ENSEIGNANT.md`](GUIDE_ENSEIGNANT.md).
@@ -29,14 +29,14 @@ cassé ne se charge pas (message d'erreur par document).
 
 ```sh
 # depuis la racine du dépôt : clôture d'un exercice
-python3 -m swap.cwm <fichiers .n3 de l'exercice> --think
+cwm <fichiers .n3 de l'exercice> --think
 ```
 
 ## Ajouter un nouvel exercice
 
 1. créer le dossier avec `enonce.md` + les `.n3` (+ `context.json` si
    besoin) ;
-2. vérifier que `python3 -m swap.cwm *.n3 --think` converge (pas de
+2. vérifier que `cwm *.n3 --think` converge (pas de
    règle non bornée) ;
 3. recharger la page de l'outil : le nouvel exercice apparaît dans le
    menu (pas d'enregistrement à faire) ;

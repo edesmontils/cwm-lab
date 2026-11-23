@@ -58,6 +58,25 @@ rec:crepes a rec:Recette ; rdfs:label "Crêpes à la pâte d'arachide" ;
   rec:contient [ rec:ingredient ingr:arachide ; rec:quantite 50  ] ;
   rec:contient [ rec:ingredient ingr:sel      ; rec:quantite 2   ] .
 
+# Le seul plat alcoolisé de la base (cirrhose : seuil à 0 g d'alcool).
+rec:pouletVinBlanc a rec:Recette ; rdfs:label "Poulet au vin blanc" ;
+  rec:contient [ rec:ingredient ingr:poulet    ; rec:quantite 150 ] ;
+  rec:contient [ rec:ingredient ingr:oignon    ; rec:quantite 50  ] ;
+  rec:contient [ rec:ingredient ingr:vinBlanc  ; rec:quantite 150 ] ;
+  rec:contient [ rec:ingredient ingr:creme     ; rec:quantite 100 ] ;
+  rec:contient [ rec:ingredient ingr:beurre    ; rec:quantite 20  ] ;
+  rec:contient [ rec:ingredient ingr:sel       ; rec:quantite 2   ] .
+
+# Crêpes « sans gluten » : le composant gluten est présent par
+# contamination croisée (farineSF) — voir ingredients.n3 et l'exo 5.
+rec:crepesSF a rec:Recette ; rdfs:label "Crêpes « sans gluten »" ;
+  rec:contient [ rec:ingredient ingr:farineSF ; rec:quantite 200 ] ;
+  rec:contient [ rec:ingredient ingr:oeuf     ; rec:quantite 150 ] ;
+  rec:contient [ rec:ingredient ingr:lait     ; rec:quantite 100 ] ;
+  rec:contient [ rec:ingredient ingr:beurre   ; rec:quantite 30  ] ;
+  rec:contient [ rec:ingredient ingr:sucre    ; rec:quantite 40  ] ;
+  rec:contient [ rec:ingredient ingr:sel      ; rec:quantite 2   ] .
+
 rec:saladeNiceoise a rec:Recette ; rdfs:label "Salade niçoise" ;
   rec:contient [ rec:ingredient ingr:thon         ; rec:quantite 120 ] ;
   rec:contient [ rec:ingredient ingr:oeuf         ; rec:quantite 60  ] ;

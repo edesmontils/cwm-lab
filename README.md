@@ -74,8 +74,9 @@ requête, conclusion) et affiche son **énoncé** :
   fonctions de l'outil en miniature ;
 - `exercises/recettes/` — exercice principal (~60–90 min) :
   contre-indications alimentaires calculées par règles N3 (allergènes
-  absolus + nutriments à seuil avec calculs `math:`), 7 recettes,
-  3 patients, 5 questions + discussion des limites du modèle ;
+  absolus + nutriments à seuil avec calculs `math:`), 9 recettes,
+  5 patients, 6 exercices + **corrigés** (`recettes/corriges/`) +
+  discussion des limites du modèle ;
 - `exercises/GUIDE_ENSEIGNANT.md` — déroulé 2 h, points de vigilance,
   barème suggéré ;
 - convention d'exercice (dossier `enonce.md` + `*.n3` +

@@ -1,0 +1,30 @@
+# Corrigé — exercice 2 : ajouter l'insuffisance rénale (potassium, seuil 600 mg).
+# À charger ENSEMBLE avec la base (ingredients/recettes/medical/regles).
+# L'axe potassium est déjà dans ingredients.n3 : seule la maladie et
+# les deux règles manquent — c'est le patron « une maladie = 1 fait + 2 règles ».
+@prefix rec:  <http://example.org/recette#> .
+@prefix ingr: <http://example.org/ingredient#> .
+@prefix med:  <http://example.org/medical#> .
+@prefix math: <http://www.w3.org/2000/10/swap/math#> .
+@prefix log:  <http://www.w3.org/2000/10/swap/log#> .
+
+med:insuffisanceRenale a med:Maladie ; med:type med:seuil ;
+  med:seuilPotassium 600 .
+
+{ ?r rec:contient ?u . ?u rec:ingredient ?i . ?u rec:quantite ?q .
+  ?i ingr:contientPotassium ?c .
+  (?q ?c) math:product ?p . (?p 100) math:quotient ?m }
+log:implies { ?u rec:contributionPotassium ?m } .
+
+{ ?r rec:contient ?u . ?u rec:contributionPotassium ?m .
+  ?m math:greaterThan ?s . med:insuffisanceRenale med:seuilPotassium ?s }
+log:implies { ?r med:contreIndication med:insuffisanceRenale } .
+
+# Résultat attendu (régime ingrédient par ingrédient) :
+#   contre-indiquée : gratinBrocoli (pomme de terre 875, brocoli 700),
+#                     salmonLentilles (saumon 660).
+# Piège : les TOTAUX dépassent 600 pour presque tout le monde
+# (satay 1647, niçoise 1494, pouletVinBlanc 718, crêpes 1017, soupe 665…)
+# — le régime simplifié est « suffisant mais pas nécessaire » :
+# voir enonce.md.
+#ends

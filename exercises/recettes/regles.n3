@@ -12,9 +12,10 @@
 #       la présence du composant suffit.
 #
 #   (B) RÈGLES À SEUIL — par nutriment surveillé (sodium, purines,
-#       sucre) : on calcule d'abord la CONTRIBUTION du nutriment de
-#       chaque ingrédient (quantité g x teneur / 100 g), puis on la
-#       compare au SEUIL déclaré dans les données de la maladie.
+#       sucre, gras saturés, histamine, alcool) : on calcule d'abord
+#       la CONTRIBUTION du nutriment de chaque ingrédient
+#       (quantité g x teneur / 100 g), puis on la compare au SEUIL
+#       déclaré dans les données de la maladie.
 #       Si la contribution d'UN SEUL ingrédient dépasse le seuil,
 #       la recette est contre-indiquée (règle suffisante, pas
 #       nécessaire — voir l'énoncé, « limites du modèle »).
@@ -94,6 +95,58 @@ log:implies
   med:diabete med:seuilSucre ?s }
 log:implies
 { ?r  med:contreIndication med:diabete } .
+
+# (B4) Gras saturés — g par portion, puis seuil cardiopathie.
+{ ?r  rec:contient ?u .
+  ?u  rec:ingredient ?i .
+  ?u  rec:quantite ?q .
+  ?i  ingr:contientGrasSature ?c .
+  (?q ?c) math:product ?p .
+  (?p 100) math:quotient ?m }
+log:implies
+{ ?u  rec:contributionGrasSature ?m } .
+
+{ ?r  rec:contient ?u .
+  ?u  rec:contributionGrasSature ?m .
+  ?m  math:greaterThan ?s .
+  med:cardiopathie med:seuilGrasSature ?s }
+log:implies
+{ ?r  med:contreIndication med:cardiopathie } .
+
+# (B5) Histamine — mg par portion, puis seuil intolérance.
+{ ?r  rec:contient ?u .
+  ?u  rec:ingredient ?i .
+  ?u  rec:quantite ?q .
+  ?i  ingr:contientHistamine ?c .
+  (?q ?c) math:product ?p .
+  (?p 100) math:quotient ?m }
+log:implies
+{ ?u  rec:contributionHistamine ?m } .
+
+{ ?r  rec:contient ?u .
+  ?u  rec:contributionHistamine ?m .
+  ?m  math:greaterThan ?s .
+  med:intoleranceHistamine med:seuilHistamine ?s }
+log:implies
+{ ?r  med:contreIndication med:intoleranceHistamine } .
+
+# (B6) Alcool — g par portion, puis seuil cirrhose (0 : seuil nul =
+#      règle absolue par la porte des seuils).
+{ ?r  rec:contient ?u .
+  ?u  rec:ingredient ?i .
+  ?u  rec:quantite ?q .
+  ?i  ingr:contientAlcool ?c .
+  (?q ?c) math:product ?p .
+  (?p 100) math:quotient ?m }
+log:implies
+{ ?u  rec:contributionAlcool ?m } .
+
+{ ?r  rec:contient ?u .
+  ?u  rec:contributionAlcool ?m .
+  ?m  math:greaterThan ?s .
+  med:cirrhose med:seuilAlcool ?s }
+log:implies
+{ ?r  med:contreIndication med:cirrhose } .
 
 # ------------------------------------------------------------------
 # (C) Règle d'agrégation patient : condition -> patient concerné

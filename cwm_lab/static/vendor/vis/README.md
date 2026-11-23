@@ -1,7 +1,7 @@
 # vis-network — bundle local (P5, option « visualisation du graphe »)
 
 Ce dossier contient le bundle **vis-network** (+ **vis-data**, sa
-dépendance) utilisé par l'outil TP (`lab/lab_web/static/app.js`) pour
+dépendance) utilisé par l'outil TP (`cwm_lab/static/app.js`) pour
 la visualisation du graphe des triples, **vendu en local** : pas de
 CDN, aucune dépendance réseau au moment de l'exécution (même décision
 que le bundle CodeMirror, voir `../codemirror/README.md`).
