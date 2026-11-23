@@ -1726,7 +1726,9 @@ def render_markdown(text):
 # P5 — pack TP : exercices
 # ----------------------------------------------------------------------
 
-#: Dossier des exercices (``exercises/``). Chaque exercice est un
+#: Dossier des exercices (``cwm_lab/exercises/`` — à l'intérieur du
+#: paquet pour voyager avec ``pip install``, source ou non). Chaque
+#: exercice est un
 #: sous-dossier contenant :
 #:
 #: - ``enonce.md``    : l'énoncé (obligatoire) — son premier titre
@@ -1737,8 +1739,11 @@ def render_markdown(text):
 #: - ``context.json`` : préchargements optionnels des éditeurs
 #:   (« requête » / « conclusion ») : ``{"query": …, "conclusion": …,
 #:   "base_uri": …}``.
+#: À côté de ``engine.py`` (et non à la racine du dépôt) : une
+#: installation non éditable copie le paquet dans ``site-packages/``
+#: sans le reste du dépôt — les exercices doivent donc être du paquet.
 EXERCISES_DIR = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "exercises")
+    os.path.dirname(os.path.abspath(__file__)), "exercises")
 
 
 def _exercise_error(message, name=None):

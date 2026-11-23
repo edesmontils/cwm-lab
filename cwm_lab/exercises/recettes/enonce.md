@@ -62,7 +62,7 @@ n'ont de liens qu'aux **arêtes** (`rec:contient`, `med:provoque`,
 
 ```sh
 # CWM en ligne de commande (après pip install cwm-lab, qui apporte cwm)
-cwm exercises/recettes/*.n3 --think
+cwm cwm_lab/exercises/recettes/*.n3 --think
 
 # Outil cwm-lab : les 3 fichiers de données dans l'éditeur de faits,
 # regles.n3 dans l'éditeur de règles, puis « Raisonner ».

@@ -17,7 +17,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cwm-lab"
-version = "0.2.0"
+version = "0.3.0"
 description = "Outil TP Web sémantique (tableau de bord local) sur CWM 2.0 : parse N3/Turtle, raisonnement, SPARQL, preuves, graphe"
 readme = "README.md"
 # Licence : Apache-2.0 (voir LICENSE). Le moteur CWM 2.0, dépendance,
@@ -60,10 +60,12 @@ cwm-lab = "cwm_lab.server:main"
 [tool.setuptools]
 packages = ["cwm_lab"]
 
-# Le frontend (static/) et les exemples de config voyagent avec le paquet.
+# Le frontend (static/), les exercices et les exemples de config
+# voyagent avec le paquet (installable hors dépôt, cwm_lab/ seul).
 [tool.setuptools.package-data]
 cwm_lab = [
     "static/**/*",
+    "exercises/**/*",
     "config.yaml.example",
     ".env.example",
 ]

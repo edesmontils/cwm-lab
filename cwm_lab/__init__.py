@@ -4,7 +4,7 @@ Tableau de bord local (backend stdlib + navigateur) pour un TP de
 Web sémantique : cohérence, validité et règles. Voir ../ROADMAP.md.
 
 Backend Python **stdlib uniquement** ; le frontend (static/) est servi
-par lab_web.server.
+par ``cwm_lab.server``.
 """
 
 # Copyright 2026 CWM 2.0 maintainers
@@ -21,4 +21,4 @@ par lab_web.server.
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"

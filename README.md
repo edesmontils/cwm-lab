@@ -70,18 +70,20 @@ preuve altérée (un prédicat de la conclusion, une source…) est
 bandeau charge un exercice dans les éditeurs (données, règles,
 requête, conclusion) et affiche son **énoncé** :
 
-- `exercises/famille/` — échauffement (~30 min) : parcourt toutes les
-  fonctions de l'outil en miniature ;
-- `exercises/recettes/` — exercice principal (~60–90 min) :
+- `cwm_lab/exercises/famille/` — échauffement (~30 min) : parcourt
+  toutes les fonctions de l'outil en miniature ;
+- `cwm_lab/exercises/recettes/` — exercice principal (~60–90 min) :
   contre-indications alimentaires calculées par règles N3 (allergènes
   absolus + nutriments à seuil avec calculs `math:`), 9 recettes,
   5 patients, 6 exercices + **corrigés** (`recettes/corriges/`) +
   discussion des limites du modèle ;
-- `exercises/GUIDE_ENSEIGNANT.md` — déroulé 2 h, points de vigilance,
-  barème suggéré ;
+- `cwm_lab/exercises/GUIDE_ENSEIGNANT.md` — déroulé 2 h, points de
+  vigilance, barème suggéré ;
 - convention d'exercice (dossier `enonce.md` + `*.n3` +
-  `context.json` optionnel) documentée dans `exercises/README.md` —
-  un nouvel exercice s'ajoute sans code.
+  `context.json` optionnel) documentée dans
+  `cwm_lab/exercises/README.md` — un nouvel exercice s'ajoute sans
+  code. Les exercices sont **dans le paquet** : ils voyagent avec
+  `pip install` (source ou PyPI).
 
 `engine.list_exercises` / `engine.load_exercise`,
 `GET /api/exercises`, `GET /api/exercise?name=…`.
@@ -194,15 +196,16 @@ cwm-lab/
 │   ├── cache.py         # P8 : cache deux niveaux (mémoire + disque)
 │   ├── config.yaml.example  # config non sensible (TTL, tailles) — facultatif
 │   ├── .env.example         # config sensible (cache dir, IA) — facultatif
-│   └── static/
-│       ├── index.html   # tableau de bord (2 colonnes — éditeurs + barre
-│       │                #   d'actions | graphe persistant + onglets)
-│       ├── app.js       # éditeur CodeMirror + appels API + affichage
-│       │                #   (onglets de résultats, graphe auto, pastilles)
-│       ├── style.css    # styles du tableau de bord
-│       ├── vendor/codemirror/  # CodeMirror 6 en bundle local (esbuild)
-│       └── vendor/vis/         # vis-network + vis-data (UMD, graphe)
-├── exercises/           # exercices de TP : .n3 + énoncés .md + corrigés
+│   ├── static/
+│   │   ├── index.html   # tableau de bord (2 colonnes — éditeurs + barre
+│   │   │                #   d'actions | graphe persistant + onglets)
+│   │   ├── app.js       # éditeur CodeMirror + appels API + affichage
+│   │   │                #   (onglets de résultats, graphe auto, pastilles)
+│   │   ├── style.css    # styles du tableau de bord
+│   │   ├── vendor/codemirror/  # CodeMirror 6 en bundle local (esbuild)
+│   │   └── vendor/vis/         # vis-network + vis-data (UMD, graphe)
+│   └── exercises/       # exercices de TP : .n3 + énoncés .md + corrigés
+│                        #   (dans le paquet — voyagent avec pip install)
 └── tests/               # tests de cwm_lab (engine, cache, serveur)
 ```
 

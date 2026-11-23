@@ -86,7 +86,8 @@ comprendre pourquoi une altération la rejette.
   attendus ») ;
 - **Recettes** : dans `recettes/enonce.md` — tableaux des
   contre-indications par recette et des patients (résultats
-  reproductibles : `cwm exercises/recettes/*.n3 --think`, ou l'outil
+  reproductibles : `cwm cwm_lab/exercises/recettes/*.n3 --think`,
+  ou l'outil
   avec « Raisonner ») ; les corrigés des exercices 2–3 (rénale, IIH,
   hypercholestérolémie, totaux) sont dans `recettes/corriges/` — à
   charger **avec** la base, jamais à la place.
