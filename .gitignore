@@ -221,3 +221,10 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# cwm-lab — configuration locale (données sensibles, jamais versionnées ;
+# voir README.md « Configuration »)
+cwm_lab/.env
+cwm_lab/config.yaml
+.venv*/
+.DS_Store

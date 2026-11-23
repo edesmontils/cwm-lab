@@ -1,0 +1,78 @@
+# =====================================================================
+# Base de connaissances « Recettes & contre-indications » — TP Web sémantique
+# ---------------------------------------------------------------------
+# Fichier 3/4 : les ÉLÉMENTS MÉDICAUX.
+# Espace de nom med: — indépendant de rec: et de ingr:.
+#
+# Deux familles de conditions, et deux familles de règles associées :
+#
+#   1. Conditions ABSOLUES (allergies, intolérance au gluten) :
+#      la présence MÊME du composant interdit l'ingrédient.
+#      Le lien « composant → condition » est déclaré en données
+#      (ingr:<composant> med:provoque med:<condition>).
+#
+#   2. Conditions à SEUIL (maladies métaboliques) :
+#      l'apport du nutriment par portion ne doit pas dépasser un
+#      seuil, déclaré en données (med:<maladie> med:seuil<X> <valeur>).
+# =====================================================================
+@prefix med: <http://example.org/medical#> .
+@prefix ingr: <http://example.org/ingredient#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+# ---------------- Types ----------------
+med:Allergie  a rdfs:Class ; rdfs:label "allergie / intolérance (règle absolue)"@fr .
+med:Maladie   a rdfs:Class ; rdfs:label "maladie à seuil alimentaire"@fr .
+med:Patient   a rdfs:Class .
+med:absolu    a med:TypeDeRegime .
+med:seuil     a med:TypeDeRegime .
+
+# ---------------- Conditions absolues (règle d'interdiction du composant) ----
+med:coeliaquie a med:Allergie ; rdfs:label "maladie cœliaque (gluten)"@fr ;
+  med:type med:absolu .
+
+med:allergieArachide a med:Allergie ; rdfs:label "allergie à l'arachide"@fr ;
+  med:type med:absolu .
+
+med:allergieLait a med:Allergie ; rdfs:label "allergie au lait"@fr ;
+  med:type med:absolu .
+
+med:allergieOeuf a med:Allergie ; rdfs:label "allergie à l'œuf"@fr ;
+  med:type med:absolu .
+
+med:allergiePoisson a med:Allergie ; rdfs:label "allergie au poisson"@fr ;
+  med:type med:absolu .
+
+# Lien composant (espace ingr:) -> condition (espace med:) :
+# la règle absolue n'a pas besoin d'être dupliquée par allergène.
+ingr:gluten   med:provoque med:coeliaquie .
+ingr:arachide med:provoque med:allergieArachide .
+ingr:lait     med:provoque med:allergieLait .
+ingr:oeuf     med:provoque med:allergieOeuf .
+ingr:poisson  med:provoque med:allergiePoisson .
+
+# ---------------- Conditions à seuil (règles de comparaison numérique) ------
+# Seuils par PORTION (un repas) : valeurs à débattre et à caler en TP.
+med:hypertension a med:Maladie ; rdfs:label "hypertension (sodium)"@fr ;
+  med:type med:seuil ;
+  med:seuilSodium 1000 .        # mg de sodium / portion
+
+med:goutte a med:Maladie ; rdfs:label "goutte (purines)"@fr ;
+  med:type med:seuil ;
+  med:seuilPurines 150 .        # mg de purines / portion
+
+med:diabete a med:Maladie ; rdfs:label "diabète (sucres)"@fr ;
+  med:type med:seuil ;
+  med:seuilSucre 15 .           # g de sucre / portion
+
+# ---------------- Patients ----------------
+# med:presente : le patient présente cette condition.
+med:alice a med:Patient ; rdfs:label "Alice" ;
+  med:presente med:allergieArachide ; med:presente med:goutte .
+
+med:bob a med:Patient ; rdfs:label "Bob" ;
+  med:presente med:coeliaquie ; med:presente med:hypertension .
+
+med:carole a med:Patient ; rdfs:label "Carole" ;
+  med:presente med:diabete ; med:presente med:allergieLait .
+
+#ends

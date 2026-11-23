@@ -1,0 +1,108 @@
+# =====================================================================
+# Base de connaissances « Recettes & contre-indications » — TP Web sémantique
+# ---------------------------------------------------------------------
+# Fichier 4/4 : les RÈgles N3.
+#
+# Deux familles de règles, comme deux familles de conditions :
+#
+#   (A) RÈGLE ABSOLUE — un seul schéma pour tous les allergènes :
+#       si un ingrédient de la recette porte un composant X, et que
+#       X « provoque » la condition M, alors la recette est
+#       contre-indiquée pour M. Aucune quantité n'est examinée :
+#       la présence du composant suffit.
+#
+#   (B) RÈGLES À SEUIL — par nutriment surveillé (sodium, purines,
+#       sucre) : on calcule d'abord la CONTRIBUTION du nutriment de
+#       chaque ingrédient (quantité g x teneur / 100 g), puis on la
+#       compare au SEUIL déclaré dans les données de la maladie.
+#       Si la contribution d'UN SEUL ingrédient dépasse le seuil,
+#       la recette est contre-indiquée (règle suffisante, pas
+#       nécessaire — voir l'énoncé, « limites du modèle »).
+#
+#   (C) RÈGLE D'AGGREGATION PATIENT — une condition qui frappe une
+#       recette interdit la recette à chaque patient qui la présente.
+# =====================================================================
+@prefix rec:  <http://example.org/recette#> .
+@prefix ingr: <http://example.org/ingredient#> .
+@prefix med:  <http://example.org/medical#> .
+@prefix math: <http://www.w3.org/2000/10/swap/math#> .
+@prefix log:  <http://www.w3.org/2000/10/swap/log#> .
+
+# ------------------------------------------------------------------
+# (A) Règle absolue : interdiction du composant (qualitative)
+# ------------------------------------------------------------------
+# Toute recette contenant un ingrédient qui porte un composant X
+# provoque la contre-indication M si X provoque M (données med:provoque).
+{ ?r  rec:contient ?u .
+  ?u  rec:ingredient ?i .
+  ?i  ingr:contientAllergene ?x .
+  ?x  med:provoque ?m }
+log:implies
+{ ?r  med:contreIndication ?m } .
+
+# ------------------------------------------------------------------
+# (B) Règles à seuil : contribution d'un nutriment (calcul),
+#     puis comparaison avec le seuil de la maladie (données).
+# ------------------------------------------------------------------
+# (B1) Sodium — contribution en mg par portion, puis seuil hypertension.
+{ ?r  rec:contient ?u .
+  ?u  rec:ingredient ?i .
+  ?u  rec:quantite ?q .
+  ?i  ingr:contientSodium ?c .
+  (?q ?c) math:product ?p .
+  (?p 100) math:quotient ?m }
+log:implies
+{ ?u  rec:contributionSodium ?m } .
+
+{ ?r  rec:contient ?u .
+  ?u  rec:contributionSodium ?m .
+  ?m  math:greaterThan ?s .
+  med:hypertension med:seuilSodium ?s }
+log:implies
+{ ?r  med:contreIndication med:hypertension } .
+
+# (B2) Purines — contribution en mg par portion, puis seuil goutte.
+{ ?r  rec:contient ?u .
+  ?u  rec:ingredient ?i .
+  ?u  rec:quantite ?q .
+  ?i  ingr:contientPurines ?c .
+  (?q ?c) math:product ?p .
+  (?p 100) math:quotient ?m }
+log:implies
+{ ?u  rec:contributionPurines ?m } .
+
+{ ?r  rec:contient ?u .
+  ?u  rec:contributionPurines ?m .
+  ?m  math:greaterThan ?s .
+  med:goutte med:seuilPurines ?s }
+log:implies
+{ ?r  med:contreIndication med:goutte } .
+
+# (B3) Sucre — contribution en g par portion, puis seuil diabète.
+{ ?r  rec:contient ?u .
+  ?u  rec:ingredient ?i .
+  ?u  rec:quantite ?q .
+  ?i  ingr:contientSucre ?c .
+  (?q ?c) math:product ?p .
+  (?p 100) math:quotient ?m }
+log:implies
+{ ?u  rec:contributionSucre ?m } .
+
+{ ?r  rec:contient ?u .
+  ?u  rec:contributionSucre ?m .
+  ?m  math:greaterThan ?s .
+  med:diabete med:seuilSucre ?s }
+log:implies
+{ ?r  med:contreIndication med:diabete } .
+
+# ------------------------------------------------------------------
+# (C) Règle d'agrégation patient : condition -> patient concerné
+# ------------------------------------------------------------------
+# Si la recette R est contre-indiquée pour la condition M, alors tout
+# patient qui présente M ne peut pas manger R.
+{ ?r  med:contreIndication ?m .
+  ?p  med:presente ?m }
+log:implies
+{ ?p  rec:nePeutPasManger ?r } .
+
+#ends

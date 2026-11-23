@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TP Web sémantique — CWM 2.0</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <h1>TP Web sémantique <span class="sub">— cohérence, validité, règles (CWM 2.0)</span></h1>
+  <div id="toolbar">
+    <label for="base-uri" class="toolbar-label">Base&nbsp;URI</label>
+    <input id="base-uri" type="text" spellcheck="false"
+      placeholder="http://example.org/document.n3">
+    <button id="btn-parse" class="primary" title="Parse maintenant (⌘⏎ / Ctrl⏎)">Parse</button>
+    <span id="status" class="status"></span>
+    <span class="bar-sep" aria-hidden="true"></span>
+    <label for="exercise-select" class="toolbar-label">Exercice</label>
+    <select id="exercise-select"
+      title="Charge l'exercice choisi dans les éditeurs (données, règles, requête, conclusion) et affiche son énoncé">
+      <option value="">— aucun —</option>
+    </select>
+    <button id="btn-load-exercise" title="Remplir les éditeurs avec l'exercice choisi (remplace le contenu actuel) et afficher son énoncé">Charger</button>
+  </div>
+  <div id="toolbar-export">
+    <span class="toolbar-label">Export&nbsp;:</span>
+    <button class="export-btn" data-format="n3" title="Exporter en N3 (règles comprises)">N3</button>
+    <button class="export-btn" data-format="turtle" title="Exporter en Turtle (RDF pur uniquement)">Turtle</button>
+    <button class="export-btn" data-format="ntriples" title="Exporter en NTriples (RDF pur uniquement)">NTriples</button>
+    <button class="export-btn" data-format="rdf" title="Exporter en RDF/XML">RDF/XML</button>
+  </div>
+</header>
+
+<main>
+  <div id="enonce-panel" hidden>
+    <details open>
+      <summary>Énoncé — <span id="enonce-title"></span></summary>
+      <div id="enonce-text" class="enonce-html"></div>
+    </details>
+  </div>
+
+  <div id="layout">
+    <section id="editor-pane">
+      <h2>Document — données (N3 / Turtle)</h2>
+      <div id="editor"></div>
+
+      <h2 class="mt1">Règles (N3)</h2>
+      <div id="editor-rules"></div>
+
+      <h2 class="mt1">Requête (SPARQL)</h2>
+      <div id="editor-query"></div>
+
+      <!-- P7.1 : l'éditeur Conclusion/Preuve est dans la colonne de
+           droite (à côté des résultats) — une preuve générée, qui
+           fait des dizaines de lignes, ne gonfle plus la colonne des
+           éditeurs. -->
+
+      <!-- P7 : barre d'actions unifiée — boutons groupés par objectif
+           (le graphe n'a plus de bouton : il est toujours visible à
+           droite, et se met à jour tout seul). -->
+      <div id="action-bar">
+        <div class="bar-group">
+          <span class="bar-title">Raisonnement</span>
+          <button id="btn-infer" class="primary" title="Appliquer les règles aux données (clôture, nouveaux faits, incohérence)">Raisonner</button>
+          <label for="infer-mode" class="toolbar-label-light">mode&nbsp;:</label>
+          <select id="infer-mode" title="convergence (think) = point fixe ; 1 passe (applyRules) = une seule application de chaque règle">
+            <option value="think" selected>convergence (think)</option>
+            <option value="once">1 passe (applyRules)</option>
+          </select>
+          <label class="toolbar-label-light"><input type="checkbox" id="infer-store-rules"
+            title="copier les énoncés-règles dans la clôture (comme cwm --rules)">règles stockées</label>
+          <label class="toolbar-label-light" for="infer-timeout">timeout (s)&nbsp;:</label>
+          <input id="infer-timeout" type="number" min="0" step="1" value="10"
+            title="délai maximum de raisonnement ; 0 = sans limite" style="width:4rem">
+        </div>
+        <div class="bar-group">
+          <span class="bar-title">Interroger</span>
+          <button id="btn-query" class="primary" title="Exécuter la requête SPARQL sur les données (et sur la clôture si « raisonner avant »)">Interroger</button>
+          <label class="toolbar-label-light"><input type="checkbox" id="query-reason"
+            title="calculer d'abord la clôture, puis ré-exécuter la même requête : les lignes nouvelles sont surlignées">raisonner avant&nbsp;d'interroger</label>
+        </div>
+        <div class="bar-group">
+          <span class="bar-title">Valider</span>
+          <button id="btn-entail" class="primary"
+            title="La clôture (données + règles appliquées) contient-elle la conclusion de l'éditeur « Conclusion » ?">Entraîne&nbsp;?</button>
+          <button id="btn-why" class="primary"
+            title="Générer la preuve de la clôture dans l'onglet « Preuve » — altérez-la ensuite à la main">Pourquoi&nbsp;?</button>
+          <button id="btn-check" class="primary"
+            title="Vérifier la preuve de l'onglet « Preuve » : la dérivation est re-jouée — une preuve altérée est rejetée">Vérifier&nbsp;la&nbsp;preuve</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Poignée de redimensionnement des colonnes : le résultat d'une
+         action ne change JAMAIS la largeur des colonnes (les pistes du
+         grid sont minmax(0, …)) — seule la poignée le fait, et la
+         largeur choisie est persistée (localStorage). -->
+    <div id="col-resizer" role="separator" aria-orientation="vertical"
+      title="Glisser pour ajuster la largeur des colonnes" aria-label="Ajuster la largeur des colonnes"></div>
+
+    <section id="side-pane">
+      <!-- P7 : graphe systématiquement visible — re-rendu à chaque
+           action (édition, raisonnement, requête, exercice). -->
+      <div id="graph-panel">
+        <h2>Graphe <span id="graph-meta" class="sub"></span></h2>
+        <div id="graph-controls">
+          <label class="toolbar-label-light"><input type="checkbox" id="graph-reason"
+            title="calculer d'abord la clôture (données + règles), puis surligner ce qu'elle ajoute">après&nbsp;raisonnement</label>
+          <label class="toolbar-label-light"><input type="checkbox" id="graph-hide-literals"
+            title="masquer les nœuds-littéraux : les attributs sont regroupés en pastille (compteur) sur le nœud — survolez la pastille pour les lire">attributs&nbsp;masqués</label>
+          <span id="graph-legend" class="graph-legend">
+            <span class="legend-dot resource"></span> ressource
+            <span class="legend-dot literal"></span> littéral
+            <span class="legend-dot blank"></span> nœud vide
+            <span class="legend-dot inferred"></span> inféré
+          </span>
+        </div>
+        <div id="graph-wrap">
+          <div id="graph-canvas"></div>
+          <div id="graph-badges" aria-hidden="true"></div>
+        </div>
+        <div id="graph-output" class="results graph-output"></div>
+      </div>
+
+      <div id="proof-pane">
+        <h2>Conclusion / Preuve (N3)</h2>
+        <div id="proof-tabs" role="tablist">
+          <button id="tab-concl" class="tab active"
+            title="La conclusion à tester : la KB (données + règles) l'entraîne-t-elle ?">Conclusion</button>
+          <button id="tab-proof" class="tab"
+            title="La preuve (générée par « Pourquoi ? », altérable à la main) — « Vérifier la preuve » rejoue la dérivation">Preuve</button>
+        </div>
+        <div id="editor-concl"></div>
+        <div id="editor-proof" hidden></div>
+      </div>
+
+      <div id="results-pane">
+        <h2>Résultats</h2>
+        <!-- P7 : résultats consolidés en onglets (au lieu de N blocs
+             empilés) — l'onglet correspondant s'ouvre à chaque action. -->
+        <div id="results-tabs" role="tablist">
+          <button class="res-tab active" data-tab="parse" role="tab">Parse</button>
+          <button class="res-tab" data-tab="infer" role="tab">Raisonnement</button>
+          <button class="res-tab" data-tab="query" role="tab">Requête</button>
+          <button class="res-tab" data-tab="entail" role="tab">Entraînement</button>
+          <button class="res-tab" data-tab="proof" role="tab">Preuve</button>
+          <button class="res-tab" data-tab="export" role="tab">Export</button>
+        </div>
+
+        <div class="res-pane active" id="pane-parse">
+          <div id="results" class="results"><p class="muted">Le parse est automatique pendant la saisie (⌘⏎ / Ctrl⏎ pour forcer).</p></div>
+        </div>
+
+        <div class="res-pane" id="pane-infer">
+          <div id="infer-meta" class="tabmeta"></div>
+          <div id="infer-output" class="results"></div>
+        </div>
+
+        <div class="res-pane" id="pane-query">
+          <div id="query-meta" class="tabmeta"></div>
+          <div id="query-output" class="results"></div>
+        </div>
+
+        <div class="res-pane" id="pane-entail">
+          <div id="entail-meta" class="tabmeta"></div>
+          <div id="entail-output" class="results"></div>
+        </div>
+
+        <div class="res-pane" id="pane-proof">
+          <div id="proof-meta" class="tabmeta"></div>
+          <div id="proof-output" class="results"></div>
+        </div>
+
+        <div class="res-pane" id="pane-export">
+          <div id="export-format" class="tabmeta"></div>
+          <pre id="export-output" class="export-output"></pre>
+          <div id="export-actions">
+            <a id="export-download" class="download" download hidden>⬇ Télécharger</a>
+            <button id="export-close">Fermer</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<!-- vis.js (UMD, vendu en local — voir static/vendor/vis/README.md) :
+     vis-data définit l'objet global `vis`, vis-network l'étend. -->
+<script src="/static/vendor/vis/vis-data.min.js"></script>
+<script src="/static/vendor/vis/vis-network.min.js"></script>
+<script type="module" src="/static/app.js"></script>
+<footer id="colophon">
+  <span>© 2026 Emmanuel Desmontils — Nantes Université</span>
+  <span aria-hidden="true">·</span>
+  <span>Outil TP Web sémantique, version <span id="version">…</span></span>
+  <span aria-hidden="true">·</span>
+  <span>2026-11-23</span>
+</footer>
+</body>
+</html>

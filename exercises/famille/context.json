@@ -1,0 +1,4 @@
+{
+  "query": "PREFIX : <http://example.org/>\nSELECT ?s ?o\nWHERE { ?s :grandparentOf ?o . }\n",
+  "conclusion": "@prefix : <http://example.org/> .\n\n:alice :grandparentOf :carl .\n"
+}

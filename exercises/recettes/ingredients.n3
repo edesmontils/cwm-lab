@@ -1,0 +1,147 @@
+# =====================================================================
+# Base de connaissances « Recettes & contre-indications » — TP Web sémantique
+# ---------------------------------------------------------------------
+# Fichier 1/4 : les INGRÉDIENTS et leur composition (100 g).
+# Espace de nom ingr: — indépendant de rec: (recettes) et de med: (médical).
+#
+# Deux natures de composition :
+#   - qualitative : ingr:contientAllergene  (le composant est présent ou non)
+#   - quantitative : ingr:contientSodium / Purines / Sucre / Potassium
+#                    (valeur pour 100 g de l'ingrédient)
+# =====================================================================
+@prefix ingr: <http://example.org/ingredient#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+# ---------------- Allergènes (composants qualitatifs) ----------------
+ingr:gluten   a ingr:Allergene ; rdfs:label "gluten"@fr .
+ingr:arachide a ingr:Allergene ; rdfs:label "arachide"@fr .
+ingr:lait     a ingr:Allergene ; rdfs:label "lait"@fr .
+ingr:oeuf     a ingr:Allergene ; rdfs:label "œuf"@fr .
+ingr:poisson  a ingr:Allergene ; rdfs:label "poisson"@fr .
+
+# ---------------- Ingrédients ----------------
+# Unités : sodium, purines, potassium en mg/100 g ; sucre en g/100 g.
+# Valeurs approximatifs de composition (ordre de grandeur, pour le TP).
+
+# -- Céréales et dérivés --
+ingr:farine a ingr:Cereale ; rdfs:label "farine de blé"@fr ;
+  ingr:contientAllergene ingr:gluten ;
+  ingr:contientSodium 2 ; ingr:contientPurines 15 ;
+  ingr:contientSucre 1 ; ingr:contientPotassium 150 .
+
+ingr:biscuitSavoiard a ingr:Cereale ; rdfs:label "biscuit savoyard"@fr ;
+  ingr:contientAllergene ingr:gluten ;
+  ingr:contientAllergene ingr:oeuf ;
+  ingr:contientSodium 35 ; ingr:contientPurines 10 ;
+  ingr:contientSucre 25 ; ingr:contientPotassium 100 .
+
+# -- Fruits à coque / oléagineux --
+ingr:arachide a ingr:Olea ; rdfs:label "pâte d'arachide"@fr ;
+  ingr:contientAllergene ingr:arachide ;
+  ingr:contientSodium 5 ; ingr:contientPurines 200 ;
+  ingr:contientSucre 6 ; ingr:contientPotassium 700 .
+
+# -- Produits laitiers --
+ingr:lait a ingr:Laitier ; rdfs:label "lait"@fr ;
+  ingr:contientAllergene ingr:lait ;
+  ingr:contientSodium 44 ; ingr:contientPurines 3 ;
+  ingr:contientSucre 5 ; ingr:contientPotassium 150 .
+
+ingr:beurre a ingr:Laitier ; rdfs:label "beurre"@fr ;
+  ingr:contientAllergene ingr:lait ;
+  ingr:contientSodium 12 ; ingr:contientPurines 0 ;
+  ingr:contientSucre 0 ; ingr:contientPotassium 24 .
+
+ingr:creme a ingr:Laitier ; rdfs:label "crème"@fr ;
+  ingr:contientAllergene ingr:lait ;
+  ingr:contientSodium 40 ; ingr:contientPurines 0 ;
+  ingr:contientSucre 2.5 ; ingr:contientPotassium 40 .
+
+ingr:fromage a ingr:Laitier ; rdfs:label "fromage (emmental)"@fr ;
+  ingr:contientAllergene ingr:lait ;
+  ingr:contientSodium 430 ; ingr:contientPurines 4 ;
+  ingr:contientSucre 1 ; ingr:contientPotassium 48 .
+
+ingr:mascarpone a ingr:Laitier ; rdfs:label "mascarpone"@fr ;
+  ingr:contientAllergene ingr:lait ;
+  ingr:contientSodium 50 ; ingr:contientPurines 4 ;
+  ingr:contientSucre 0 ; ingr:contientPotassium 30 .
+
+# -- Divers --
+ingr:oeuf a ingr:Oeuf ; rdfs:label "œuf"@fr ;
+  ingr:contientAllergene ingr:oeuf ;
+  ingr:contientSodium 140 ; ingr:contientPurines 3 ;
+  ingr:contientSucre 0 ; ingr:contientPotassium 140 .
+
+ingr:thon a ingr:Poisson ; rdfs:label "thon en boîte"@fr ;
+  ingr:contientAllergene ingr:poisson ;
+  ingr:contientSodium 500 ; ingr:contientPurines 240 ;
+  ingr:contientSucre 0 ; ingr:contientPotassium 250 .
+
+ingr:saumon a ingr:Poisson ; rdfs:label "saumon frais"@fr ;
+  ingr:contientAllergene ingr:poisson ;
+  ingr:contientSodium 60 ; ingr:contientPurines 250 ;
+  ingr:contientSucre 0 ; ingr:contientPotassium 330 .
+
+ingr:saucePoisson a ingr:Condiment ; rdfs:label "sauce au poisson"@fr ;
+  ingr:contientAllergene ingr:poisson ;
+  ingr:contientSodium 3000 ; ingr:contientPurines 200 ;
+  ingr:contientSucre 0 ; ingr:contientPotassium 100 .
+
+ingr:poulet a ingr:Viande ; rdfs:label "poulet"@fr ;
+  ingr:contientSodium 50 ; ingr:contientPurines 130 ;
+  ingr:contientSucre 0 ; ingr:contientPotassium 330 .
+
+ingr:lentilles a ingr:Legumineuse ; rdfs:label "lentilles (cuites)"@fr ;
+  ingr:contientSodium 3 ; ingr:contientPurines 180 ;
+  ingr:contientSucre 0.5 ; ingr:contientPotassium 370 .
+
+ingr:olives a ingr:Legume ; rdfs:label "olives vertes"@fr ;
+  ingr:contientSodium 1740 ; ingr:contientPurines 10 ;
+  ingr:contientSucre 1 ; ingr:contientPotassium 260 .
+
+ingr:tomate a ingr:Legume ; rdfs:label "tomate"@fr ;
+  ingr:contientSodium 1 ; ingr:contientPurines 9 ;
+  ingr:contientSucre 2.6 ; ingr:contientPotassium 237 .
+
+ingr:oignon a ingr:Legume ; rdfs:label "oignon"@fr ;
+  ingr:contientSodium 4 ; ingr:contientPurines 6 ;
+  ingr:contientSucre 2 ; ingr:contientPotassium 146 .
+
+ingr:brocoli a ingr:Legume ; rdfs:label "brocoli"@fr ;
+  ingr:contientSodium 30 ; ingr:contientPurines 17 ;
+  ingr:contientSucre 1 ; ingr:contientPotassium 350 .
+
+ingr:pommeTerre a ingr:Legume ; rdfs:label "pomme de terre"@fr ;
+  ingr:contientSodium 35 ; ingr:contientPurines 5 ;
+  ingr:contientSucre 1 ; ingr:contientPotassium 350 .
+
+ingr:haricotsVerts a ingr:Legume ; rdfs:label "haricots verts"@fr ;
+  ingr:contientSodium 20 ; ingr:contientPurines 20 ;
+  ingr:contientSucre 1.8 ; ingr:contientPotassium 360 .
+
+ingr:huileOlive a ingr:Condiment ; rdfs:label "huile d'olive"@fr ;
+  ingr:contientSodium 0 ; ingr:contientPurines 0 ;
+  ingr:contientSucre 0 ; ingr:contientPotassium 0 .
+
+ingr:sauceCoco a ingr:Condiment ; rdfs:label "lait de coco"@fr ;
+  ingr:contientSodium 5 ; ingr:contientPurines 0 ;
+  ingr:contientSucre 2.5 ; ingr:contientPotassium 240 .
+
+ingr:sucre a ingr:Condiment ; rdfs:label "sucre"@fr ;
+  ingr:contientSodium 0 ; ingr:contientPurines 0 ;
+  ingr:contientSucre 100 ; ingr:contientPotassium 0 .
+
+ingr:cafe a ingr:Boisson ; rdfs:label "café (liquide)"@fr ;
+  ingr:contientSodium 5 ; ingr:contientPurines 0 ;
+  ingr:contientSucre 0 ; ingr:contientPotassium 212 .
+
+ingr:cacao a ingr:Condiment ; rdfs:label "cacao en poudre"@fr ;
+  ingr:contientSodium 4 ; ingr:contientPurines 10 ;
+  ingr:contientSucre 2 ; ingr:contientPotassium 630 .
+
+ingr:sel a ingr:Condiment ; rdfs:label "sel"@fr ;
+  ingr:contientSodium 38758 ; ingr:contientPurines 0 ;
+  ingr:contientSucre 0 ; ingr:contientPotassium 0 .
+
+#ends

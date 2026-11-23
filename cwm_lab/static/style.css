@@ -1,0 +1,456 @@
+/* style.css — outil TP Web sémantique (CWM 2.0, P7 : layout unifié) */
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: #1a2332;
+  background: #f4f6f9;
+}
+header {
+  background: #1a2332;
+  color: #fff;
+  padding: 0.6rem 1rem;
+}
+header h1 { margin: 0 0 0.5rem; font-size: 1.15rem; font-weight: 600; }
+header h1 .sub { font-weight: 400; font-size: 0.85rem; color: #9fb0c8; }
+#toolbar, #toolbar-export {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+#toolbar-export { margin-top: 0.4rem; padding-top: 0.4rem; border-top: 1px solid #2c3a4f; }
+.toolbar-label { font-size: 0.85rem; color: #9fb0c8; }
+#base-uri {
+  font: inherit;
+  font-size: 0.8rem;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid #2c3a4f;
+  border-radius: 6px;
+  background: #232f42;
+  color: #fff;
+  min-width: 22rem;
+}
+#base-uri:focus { outline: 1px solid #2563eb; }
+
+#exercise-select {
+  font: inherit;
+  font-size: 0.8rem;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid #2c3a4f;
+  border-radius: 6px;
+  background: #232f42;
+  color: #fff;
+  min-width: 16rem;
+  max-width: 26rem;
+}
+#exercise-select:focus { outline: 1px solid #2563eb; }
+
+/* Panneau énoncé d'exercice (P5) — P7 : rendu Markdown en HTML */
+#enonce-panel {
+  margin-bottom: 1rem;
+  border: 1px solid #dde3ec;
+  border-left: 4px solid #2563eb;
+  border-radius: 6px;
+  background: #f8fafc;
+  padding: 0.2rem 0.8rem 0.6rem;
+}
+#enonce-panel summary {
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #1a2332;
+  padding: 0.4rem 0;
+}
+.enonce-html {
+  font-size: 0.85rem;
+  line-height: 1.55;
+  max-height: 32rem;
+  overflow: auto;
+  margin: 0.4rem 0 0;
+  padding: 0.5rem 0.7rem;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+}
+/* le premier titre Markdown est redondant avec le libellé du panneau */
+.enonce-html > h1:first-child { display: none; }
+.enonce-html h1 { font-size: 1.05rem; margin: 0.9rem 0 0.4rem; }
+.enonce-html h2 { font-size: 0.95rem; margin: 0.9rem 0 0.35rem; }
+.enonce-html h3 { font-size: 0.88rem; margin: 0.8rem 0 0.3rem; }
+.enonce-html p { margin: 0.45rem 0; }
+.enonce-html ul, .enonce-html ol { margin: 0.4rem 0; padding-left: 1.4rem; }
+.enonce-html li { margin: 0.2rem 0; }
+.enonce-html table {
+  border-collapse: collapse;
+  margin: 0.5rem 0;
+  font-size: 0.8rem;
+}
+.enonce-html th, .enonce-html td {
+  border: 1px solid #e2e8f0;
+  padding: 0.25rem 0.55rem;
+  text-align: left;
+}
+.enonce-html thead th { background: #f1f5f9; font-weight: 600; }
+.enonce-html pre {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.78rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  padding: 0.5rem 0.6rem;
+  overflow: auto;
+}
+.enonce-html code {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  background: #eef2f7;
+  padding: 0 0.25rem;
+  border-radius: 3px;
+}
+.enonce-html pre code { background: none; padding: 0; }
+
+button {
+  font: inherit;
+  padding: 0.35rem 0.9rem;
+  border: 1px solid #2c3a4f;
+  border-radius: 6px;
+  background: #2c3a4f;
+  color: #fff;
+  cursor: pointer;
+}
+button:hover { background: #3b4d6b; }
+button.primary { background: #2563eb; border-color: #2563eb; }
+button.primary:hover { background: #1d4ed8; }
+button:disabled { opacity: 0.5; cursor: wait; }
+
+.status { font-size: 0.85rem; color: #9fb0c8; }
+.status.ok { color: #4ade80; }
+.status.error { color: #f87171; }
+
+/* Layout P7 : deux colonnes — éditeurs (gauche) / graphe persistant
+   + résultats en onglets (droite). */
+main { padding: 1rem; }
+/* P7.1 : les pistes sont minmax(0, …) — le contenu le plus large
+   (une preuve générée, un long tableau) ne peut PAS élargir sa
+   colonne : la largeur des colonnes ne change que par la poignée
+   #col-resizer (CSS variable --left-col, persistée côté client). */
+#layout {
+  display: grid;
+  grid-template-columns: minmax(0, var(--left-col, 1fr)) 6px minmax(0, 1fr);
+  align-items: start;
+}
+#col-resizer {
+  align-self: stretch;
+  margin: 0 0.5rem;
+  cursor: col-resize;
+  border-radius: 3px;
+  background: transparent;
+  transition: background 0.15s;
+  touch-action: none;
+}
+#col-resizer:hover, #col-resizer.dragging { background: #b9c6d8; }
+body.col-resizing { cursor: col-resize; user-select: none; }
+body.col-resizing #layout section { pointer-events: none; }
+/* même contrainte en une colonne : un `1fr` nu = minmax(auto, 1fr) —
+   le min-content d'une ligne CodeMirror très longue (les preuves
+   embarquent des URI data:) élargirait toute la page */
+#layout > section { min-width: 0; }
+@media (max-width: 1100px) {
+  #layout { grid-template-columns: minmax(0, 1fr); }
+  #col-resizer { display: none; }
+}
+
+section {
+  background: #fff;
+  border: 1px solid #dde3ec;
+  border-radius: 8px;
+  padding: 0.8rem;
+}
+section h2 { margin: 0 0 0.6rem; font-size: 0.95rem; color: #334155; }
+section h2 .sub { font-weight: 400; font-size: 0.8rem; color: #64748b; }
+#side-pane { padding: 0; display: flex; flex-direction: column; gap: 1rem; }
+
+/* ------------------------------------------------------------------ */
+/* Éditeurs CodeMirror 6 (données + règles + requête)                  */
+/* ------------------------------------------------------------------ */
+#editor .cm-editor, #editor-rules .cm-editor, #editor-query .cm-editor {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.85rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+}
+/* Éditeur 4 — Conclusion / Preuve (P4) : onglets + deux éditeurs */
+#proof-tabs { display: flex; gap: 0.4rem; margin-bottom: 0.4rem; }
+#proof-tabs .tab {
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+  font-size: 0.85rem;
+  padding: 0.25rem 0.8rem;
+}
+#proof-tabs .tab.active {
+  background: #1a2332;
+  border-color: #1a2332;
+  color: #fff;
+}
+#editor-concl .cm-editor, #editor-proof .cm-editor {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.85rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+}
+#editor-concl .cm-editor { height: 8rem; }
+#editor-proof .cm-editor { height: 14rem; }
+#editor .cm-editor { height: 22rem; }
+#editor-rules .cm-editor { height: 12rem; }
+#editor-query .cm-editor { height: 10rem; }
+#editor .cm-editor.cm-focused, #editor-rules .cm-editor.cm-focused,
+#editor-query .cm-editor.cm-focused, #editor-concl .cm-editor.cm-focused,
+#editor-proof .cm-editor.cm-focused { outline: none; }
+#editor .cm-scroller, #editor-rules .cm-scroller, #editor-query .cm-scroller,
+#editor-concl .cm-scroller, #editor-proof .cm-scroller {
+  line-height: 1.5; tab-size: 2;
+}
+section h2.mt1 { margin-top: 1rem; }
+
+/* Surcouche N3 (mots-clés hors grammaire Turtle) */
+.cm-n3-directive { color: #7c3aed !important; font-weight: bold; }
+.cm-n3-rule { color: #0e7490 !important; font-weight: bold; }
+.cm-n3-var { color: #be185d !important; }
+
+/* ------------------------------------------------------------------ */
+/* P7 : barre d'actions unifiée — boutons groupés par objectif         */
+/* ------------------------------------------------------------------ */
+#action-bar {
+  display: flex;
+  align-items: stretch;
+  gap: 0.9rem;
+  flex-wrap: wrap;
+  margin-top: 0.8rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid #dde3ec;
+}
+.bar-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding: 0.4rem 0.6rem;
+  background: #f8fafc;
+  border: 1px solid #e8edf4;
+  border-radius: 6px;
+}
+.bar-title {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #94a3b8;
+  margin-right: 0.2rem;
+}
+.toolbar-label-light { font-size: 0.85rem; color: #334155; }
+#action-bar select, #action-bar input[type="number"] {
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0.25rem 0.4rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #fff;
+  color: #1a2332;
+}
+.bar-sep {
+  width: 1px;
+  height: 1.4rem;
+  background: #dde3ec;
+  margin: 0 0.3rem;
+}
+
+/* ------------------------------------------------------------------ */
+/* P7 : graphe persistant (colonne de droite, toujours visible)        */
+/* ------------------------------------------------------------------ */
+#graph-panel, #proof-pane { padding: 0.8rem; }
+#graph-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  font-size: 0.8rem;
+  margin-bottom: 0.4rem;
+}
+.graph-legend { display: flex; gap: 0.7rem; align-items: center; flex-wrap: wrap; font-size: 0.78rem; color: #64748b; }
+.legend-dot {
+  display: inline-block;
+  width: 0.8rem;
+  height: 0.8rem;
+  border-radius: 50%;
+  margin-right: 0.3rem;
+  vertical-align: baseline;
+}
+.legend-dot.resource { background: #3b82f6; }
+.legend-dot.literal { background: #16a34a; }
+.legend-dot.blank { background: #94a3b8; }
+.legend-dot.inferred { background: #f59e0b; }
+#graph-wrap { position: relative; }
+#graph-canvas {
+  height: 19rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #fff;
+}
+/* Pastilles des attributs masqués (P7) : calque au-dessus du canvas,
+   pointer-events:none (on peut continuer à manipuler le graphe). */
+#graph-badges {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.attr-badge {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  min-width: 1.15rem;
+  height: 1.15rem;
+  padding: 0 0.25rem;
+  border-radius: 999px;
+  background: #fff;
+  border: 2px solid #16a34a;
+  color: #166534;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;   /* la pastille est survolable (infobulle) */
+  cursor: help;
+}
+.graph-output { min-height: 0 !important; }
+.graph-output:empty { display: none; }
+
+/* ------------------------------------------------------------------ */
+/* P7 : résultats consolidés en onglets                                */
+/* ------------------------------------------------------------------ */
+#results-pane { padding: 0.8rem; }
+#results-tabs { display: flex; gap: 0.3rem; flex-wrap: wrap; margin-bottom: 0.6rem; }
+.res-tab {
+  position: relative;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+  font-size: 0.82rem;
+  padding: 0.3rem 0.75rem;
+}
+.res-tab.active {
+  background: #1a2332;
+  border-color: #1a2332;
+  color: #fff;
+}
+/* point « nouveau résultat » sur un onglet masqué */
+.res-tab.dot::after {
+  content: "";
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  background: #f59e0b;
+  border: 1px solid #fff;
+}
+.res-pane { display: none; }
+.res-pane.active { display: block; }
+.tabmeta {
+  font-size: 0.78rem;
+  color: #64748b;
+  margin: -0.2rem 0 0.35rem;
+  min-height: 1em;
+}
+
+.results { min-height: 10rem; }
+.results p.ok, li.ok, .ok { color: #15803d; }
+.results .error, .error { color: #b91c1c; }
+.results .muted { color: #64748b; }
+#results-pane h3 { margin: 0.9rem 0 0.2rem; font-size: 0.95rem; }
+ul { margin: 0.4rem 0; padding-left: 1.2rem; }
+code {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  background: #eef2f7;
+  padding: 0 0.25rem;
+  border-radius: 3px;
+}
+
+/* Bannières de verdict (incohérence, timeout, oui/non, valide…) */
+.banner {
+  padding: 0.5rem 0.7rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+.banner-error { background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; }
+.banner-timeout { background: #fffbeb; border: 1px solid #fde68a; color: #b45309; }
+.banner-ok { background: #f0fdf4; border: 1px solid #bbf7d0; color: #15803d; }
+.banner-muted { background: #f8fafc; border: 1px solid #e2e8f0; color: #475569; }
+ul.new-facts { font-size: 0.85rem; }
+ul.new-facts li { margin: 0.15rem 0; }
+
+/* Tableau de résultats SPARQL (P3) */
+.query-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.85rem;
+  margin: 0.3rem 0 0.6rem;
+}
+.query-table th, .query-table td {
+  border: 1px solid #e2e8f0;
+  padding: 0.25rem 0.5rem;
+  text-align: left;
+  word-break: break-all;
+}
+.query-table thead th { background: #f1f5f9; font-weight: 600; }
+/* Ligne nouvelle du diff avant/après raisonnement */
+.query-table tr.row-new td { background: #fef9c3; }
+.query-table tr.row-new td:first-child { box-shadow: inset 3px 0 0 #ca8a04; }
+
+/* Preuve : étapes de dérivation (P4) */
+.proof-steps { margin-top: 0.5rem; font-size: 0.85rem; }
+.proof-steps summary { cursor: pointer; color: #2563eb; }
+.proof-steps-list { margin: 0.4rem 0; padding-left: 1.4rem; }
+.proof-steps-list li { margin: 0.3rem 0; }
+.proof-steps-list code { word-break: break-all; }
+.step-how { color: #64748b; font-size: 0.8rem; margin-top: 0.15rem; }
+
+/* Onglet Export (P7) */
+.export-output {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.8rem;
+  background: #f8fafc;
+  border: 1px solid #dde3ec;
+  border-radius: 6px;
+  padding: 0.6rem;
+  margin: 0 0 0.6rem;
+  max-height: 16rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+.export-output.error { color: #b91c1c; }
+#export-actions { display: flex; gap: 0.8rem; align-items: center; }
+.download {
+  font-size: 0.85rem;
+  color: #2563eb;
+  text-decoration: none;
+}
+.download:hover { text-decoration: underline; }
+
+/* Colophon : copyright, auteur, institution, date, version */
+#colophon {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  align-items: center;
+  background: #1a2332;
+  color: #9fb0c8;
+  font-size: 0.75rem;
+  padding: 0.45rem 1rem;
+  margin-top: 1rem;
+}
+#colophon span:first-child { color: #fff; font-weight: 500; }

@@ -1,0 +1,13 @@
+# =====================================================================
+# Exercice 1 — « Famille » (échauffement)
+# ---------------------------------------------------------------------
+# La règle du grand-parent. NB : les variables DOIVENT être déclarées
+# `@forAll` — un `:x` nu serait une constante (piège classique).
+# =====================================================================
+@prefix : <http://example.org/> .
+@prefix log: <http://www.w3.org/2000/10/swap/log#> .
+
+@forAll :x , :y , :z .
+{ :x :parentOf :y . :y :parentOf :z . } log:implies { :x :grandparentOf :z } .
+
+#ends

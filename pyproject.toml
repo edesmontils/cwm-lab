@@ -1,0 +1,69 @@
+# cwm-lab — Outil TP Web sémantique (tableau de bord) sur CWM 2.0.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cwm-lab"
+version = "0.2.0"
+description = "Outil TP Web sémantique (tableau de bord local) sur CWM 2.0 : parse N3/Turtle, raisonnement, SPARQL, preuves, graphe"
+readme = "README.md"
+# Licence : Apache-2.0 (voir LICENSE). Le moteur CWM 2.0, dépendance,
+# est sous licence W3C Software (code d'origine) / Apache-2.0
+# (modifications du fork) — voir le dépôt CWM.
+license = {text = "Apache-2.0"}
+requires-python = ">=3.9"
+authors = [
+    {name = "Emmanuel Desmontils", email = "emmanuel.desmontils@univ-nantes.fr"},
+]
+maintainers = [
+    {name = "Emmanuel Desmontils", email = "emmanuel.desmontils@univ-nantes.fr"},
+]
+keywords = ["semantic-web", "rdf", "n3", "turtle", "sparql", "reasoner", "education"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Education",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Education",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+]
+# Seule dépendance : CWM 2.0 (fork, publié sur PyPI sous le nom « cwm »,
+# dépôt source : https://gitlab.univ-nantes.fr/desmontils-e/cwm).
+dependencies = [
+    "cwm>=2.9.3",
+]
+
+[project.urls]
+Homepage = "https://github.com/edesmontils/cwm-lab"
+Repository = "https://github.com/edesmontils/cwm-lab"
+"Bug Tracker" = "https://github.com/edesmontils/cwm-lab/issues"
+"CWM 2.0 (moteur)" = "https://gitlab.univ-nantes.fr/desmontils-e/cwm"
+
+# Lancement en commande : cwm-lab [--port N] [--host H]
+[project.scripts]
+cwm-lab = "cwm_lab.server:main"
+
+[tool.setuptools]
+packages = ["cwm_lab"]
+
+# Le frontend (static/) et les exemples de config voyagent avec le paquet.
+[tool.setuptools.package-data]
+cwm_lab = [
+    "static/**/*",
+    "config.yaml.example",
+    ".env.example",
+]

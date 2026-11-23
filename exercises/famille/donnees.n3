@@ -1,0 +1,16 @@
+# =====================================================================
+# Exercice 1 — « Famille » (échauffement)
+# ---------------------------------------------------------------------
+# Un petit graphe familial : 3 personnes, 2 liens de parenté.
+# Suffisant pour parcourir TOUTES les fonctions de l'outil, en
+# miniature, avant l'exercice « recettes ».
+# =====================================================================
+@prefix : <http://example.org/> .
+
+:alice a :Person .
+:bob   a :Person .
+:carl  a :Person .
+:alice :parentOf :bob .
+:bob   :parentOf :carl .
+
+#ends

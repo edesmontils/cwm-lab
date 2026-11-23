@@ -1,0 +1,18 @@
+# P8 — configuration de l'outil TP (paramètres NON sensibles).
+#
+# Installation : cp config.yaml.example config.yaml  —  compléter
+#  —  chmod 600 config.yaml
+# Absent le fichier, les valeurs par défaut ci-dessous s'appliquent
+# (l'appli démarre sans config). Format YAML plat (cle: valeur).
+
+# Rétention du cache disque (défaut 7 jours) — formats : s, m, h, d
+#ttl_disk: 7d
+
+# Rétention du cache mémoire (défaut 5 minutes)
+#ttl_memory: 5m
+
+# Taille totale maximale du cache disque, en Mo (défaut 200)
+#max_disk_mb: 200
+
+# Nombre d'entrées du cache mémoire (défaut 64)
+#memory_entries: 64

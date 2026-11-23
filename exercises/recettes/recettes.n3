@@ -1,0 +1,71 @@
+# =====================================================================
+# Base de connaissances « Recettes & contre-indications » — TP Web sémantique
+# ---------------------------------------------------------------------
+# Fichier 2/4 : les RECETTES (composition en ingrédients + quantités).
+# Espace de nom rec: — indépendant de ingr: et de med:.
+#
+# Chaque recette utilise un ingrédient via un nœud anonyme :
+#   [ rec:ingredient <ingrédient> ; rec:quantite <grammes par portion> ]
+#
+# rec:quantite est exprimé en GRAMMES PAR PORTION.
+# =====================================================================
+@prefix rec: <http://example.org/recette#> .
+@prefix ingr: <http://example.org/ingredient#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+rec:soupeTomate a rec:Recette ; rdfs:label "Soupe de tomates au basilic" ;
+  rec:contient [ rec:ingredient ingr:tomate     ; rec:quantite 250 ] ;
+  rec:contient [ rec:ingredient ingr:oignon      ; rec:quantite 50  ] ;
+  rec:contient [ rec:ingredient ingr:huileOlive  ; rec:quantite 30  ] ;
+  rec:contient [ rec:ingredient ingr:sucre       ; rec:quantite 2   ] ;
+  rec:contient [ rec:ingredient ingr:sel         ; rec:quantite 2   ] .
+
+rec:gratinBrocoli a rec:Recette ; rdfs:label "Gratin de brocoli au fromage" ;
+  rec:contient [ rec:ingredient ingr:brocoli     ; rec:quantite 200 ] ;
+  rec:contient [ rec:ingredient ingr:pommeTerre  ; rec:quantite 250 ] ;
+  rec:contient [ rec:ingredient ingr:fromage     ; rec:quantite 80  ] ;
+  rec:contient [ rec:ingredient ingr:creme       ; rec:quantite 100 ] ;
+  rec:contient [ rec:ingredient ingr:sel         ; rec:quantite 3   ] .
+
+rec:salmonLentilles a rec:Recette ; rdfs:label "Saumon rôti aux lentilles" ;
+  rec:contient [ rec:ingredient ingr:saumon      ; rec:quantite 200 ] ;
+  rec:contient [ rec:ingredient ingr:lentilles   ; rec:quantite 150 ] ;
+  rec:contient [ rec:ingredient ingr:huileOlive  ; rec:quantite 30  ] ;
+  rec:contient [ rec:ingredient ingr:sel         ; rec:quantite 2   ] .
+
+rec:tiramisu a rec:Recette ; rdfs:label "Tiramisu" ;
+  rec:contient [ rec:ingredient ingr:mascarpone      ; rec:quantite 150 ] ;
+  rec:contient [ rec:ingredient ingr:oeuf            ; rec:quantite 100 ] ;
+  rec:contient [ rec:ingredient ingr:sucre           ; rec:quantite 50  ] ;
+  rec:contient [ rec:ingredient ingr:cafe            ; rec:quantite 50  ] ;
+  rec:contient [ rec:ingredient ingr:cacao           ; rec:quantite 10  ] ;
+  rec:contient [ rec:ingredient ingr:biscuitSavoiard ; rec:quantite 80  ] .
+
+rec:satay a rec:Recette ; rdfs:label "Soupe de sate au lait de coco" ;
+  rec:contient [ rec:ingredient ingr:arachide     ; rec:quantite 60  ] ;
+  rec:contient [ rec:ingredient ingr:sauceCoco    ; rec:quantite 200 ] ;
+  rec:contient [ rec:ingredient ingr:poulet       ; rec:quantite 150 ] ;
+  rec:contient [ rec:ingredient ingr:saucePoisson ; rec:quantite 15  ] ;
+  rec:contient [ rec:ingredient ingr:tomate       ; rec:quantite 100 ] ;
+  rec:contient [ rec:ingredient ingr:sel          ; rec:quantite 1   ] .
+
+rec:crepes a rec:Recette ; rdfs:label "Crêpes à la pâte d'arachide" ;
+  rec:contient [ rec:ingredient ingr:farine   ; rec:quantite 200 ] ;
+  rec:contient [ rec:ingredient ingr:oeuf     ; rec:quantite 150 ] ;
+  rec:contient [ rec:ingredient ingr:lait     ; rec:quantite 100 ] ;
+  rec:contient [ rec:ingredient ingr:beurre   ; rec:quantite 30  ] ;
+  rec:contient [ rec:ingredient ingr:sucre    ; rec:quantite 40  ] ;
+  rec:contient [ rec:ingredient ingr:arachide ; rec:quantite 50  ] ;
+  rec:contient [ rec:ingredient ingr:sel      ; rec:quantite 2   ] .
+
+rec:saladeNiceoise a rec:Recette ; rdfs:label "Salade niçoise" ;
+  rec:contient [ rec:ingredient ingr:thon         ; rec:quantite 120 ] ;
+  rec:contient [ rec:ingredient ingr:oeuf         ; rec:quantite 60  ] ;
+  rec:contient [ rec:ingredient ingr:olives       ; rec:quantite 60  ] ;
+  rec:contient [ rec:ingredient ingr:tomate       ; rec:quantite 150 ] ;
+  rec:contient [ rec:ingredient ingr:haricotsVerts ; rec:quantite 150 ] ;
+  rec:contient [ rec:ingredient ingr:oignon       ; rec:quantite 40  ] ;
+  rec:contient [ rec:ingredient ingr:huileOlive   ; rec:quantite 30  ] ;
+  rec:contient [ rec:ingredient ingr:sel          ; rec:quantite 2   ] .
+
+#ends
