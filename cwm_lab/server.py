@@ -34,6 +34,15 @@ Endpoints (P0) :
 - ``POST /api/check`` : body JSON ``{"proof": ...}``
                           → résultat de :func:`cwm_lab.engine.check_proof`.
 
+Endpoints IA générative (P9 — jamais cachés : non déterministes) :
+
+- ``GET /api/ia/status`` : état de l'IA pour le front (activée ?,
+  modèle, quota de séance restant) → :func:`cwm_lab.ia.status` ;
+- ``POST /api/ia/generate`` : body JSON ``{"enonce", "rules",
+  "base_uri", "facts", "entities", "exercise", "timeout"}`` →
+  :func:`cwm_lab.ia.generate` (prompt → proxy → contrôles parse /
+  cohérence / plausibilité → régénération bornée).
+
 Endpoints d'exercices et de visualisation (P5) :
 
 - ``GET /api/exercises`` : la liste des exercices disponibles
@@ -76,7 +85,7 @@ import sys
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from . import __version__, cache, engine
+from . import __version__, cache, engine, ia
 
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 
@@ -84,6 +93,11 @@ STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 #: persisté), voir ``cache.py``. ``None`` = cache désactivé (ex.
 #: répertoire non créable) — l'API fonctionne alors sans cache.
 CACHE = None
+
+#: Configuration (P8/P9) : ``config.yaml`` + ``.env`` (voir
+#: :func:`cwm_lab.cache.load_config`). ``None`` = valeurs par défaut
+#: (l'appli démarre sans config ; l'IA est alors désactivée).
+CONFIG = None
 
 CONTENT_TYPES = {
     ".html": "text/html; charset=utf-8",
@@ -160,6 +174,12 @@ class Handler(BaseHTTPRequestHandler):
         path, _, query_string = self.path.partition("?")
         if path == "/api/version":
             self._send_json({"version": __version__})
+            return
+        if path == "/api/ia/status":
+            # P9 : état de l'IA (bouton activé / désactivé + quota
+            # de séance restant) — lecture seule, pas de cache.
+            self._send_json(ia.status(CONFIG or {},
+                                      CACHE.disk_dir if CACHE else None))
             return
         if path == "/api/exercises":
             self._send_json(engine.list_exercises())
@@ -308,6 +328,36 @@ class Handler(BaseHTTPRequestHandler):
             ))
             self._send_json(result)
             return
+        if path == "/api/ia/generate":
+            # P9 : génération par IA — jamais cachée (P8) : non
+            # déterministe et coûteuse ; quotas de séance comptés
+            # côté backend (persistés avec le cache).
+            try:
+                req = self._read_json()
+            except (ValueError, UnicodeDecodeError):
+                self._send_json({"error": "body JSON invalide"}, status=400)
+                return
+            def _int(key, default, lo, hi):
+                try:
+                    return max(lo, min(hi, int(req.get(key, default))))
+                except (TypeError, ValueError):
+                    return default
+            result = ia.generate(
+                CONFIG or {},
+                enonce=req.get("enonce", "") or "",
+                rules=req.get("rules", "") or "",
+                base_uri=req.get("base_uri") or engine.DEFAULT_BASE_URI,
+                n_facts=_int("facts", 40, 1, 2000),
+                n_entities=_int("entities", 10, 1, 500),
+                exercise=req.get("exercise"),
+                timeout=req.get("timeout"),
+                cache_dir=CACHE.disk_dir if CACHE else None,
+            )
+            # 429 : quota de séance épuisé (le bouton se désactive)
+            statut = 429 if (not result["ok"]
+                             and result.get("status") == 429) else 200
+            self._send_json(result, status=statut)
+            return
         self._send_json({"error": "endpoint inconnu"}, status=404)
 
     def log_message(self, fmt, *args):  # silence le log par défaut
@@ -320,11 +370,13 @@ def main(argv=None):
     ap.add_argument("--port", type=int, default=8000, help="port (défaut 8000)")
     ap.add_argument("--host", default="127.0.0.1", help="interface (défaut 127.0.0.1)")
     args = ap.parse_args(argv)
-    # Cache des traitements (P8) : config.yaml (TTL, tailles) + .env
-    # (répertoire, sensible) — absents, les valeurs par défaut.
-    global CACHE
+    # Configuration (P8/P9) : config.yaml (TTL, tailles, quotas IA)
+    # + .env (répertoire du cache, IA — sensible) ; absents, les
+    # valeurs par défaut (l'IA est alors désactivée).
+    global CACHE, CONFIG
+    CONFIG = cache.load_config()
     try:
-        CACHE = cache.Cache(cache.load_config())
+        CACHE = cache.Cache(CONFIG)
     except Exception as e:  # le cache ne doit jamais bloquer le TP
         CACHE = None
         print("cache indisponible (%s) : mode sans cache" % e)
@@ -332,6 +384,10 @@ def main(argv=None):
     print("CWM Lab — CWM 2.0 (v%s)" % __version__)
     print("Cache : %s"
           % (CACHE.disk_dir or "mémoire seule (répertoire disque indisponible)"))
+    ia_state = ia.status(CONFIG, CACHE.disk_dir if CACHE else None)
+    print("IA : %s" % ("activée (%s @ %s)"
+          % (ia_state["model"], ia_state["url"]) if ia_state["enabled"]
+          else "désactivée — " + (ia_state["reason"] or "")))
     print("Ouvrir http://%s:%d   (Ctrl-C pour arrêter)" % (args.host, args.port))
     try:
         server.serve_forever()

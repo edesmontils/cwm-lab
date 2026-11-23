@@ -441,6 +441,43 @@ ul.new-facts li { margin: 0.15rem 0; }
 }
 .download:hover { text-decoration: underline; }
 
+/* P9 — Génération de données par IA générative */
+/* Bannière « généré par IA, à vérifier » au-dessus de l'éditeur
+   « données » : visible tant que le document contient la dernière
+   génération (masquée par toute édition, × ou chargement). */
+.ia-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  margin: 0.3rem 0 0.5rem;
+  padding: 0.35rem 0.6rem;
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  color: #92400e;
+}
+/* display:flex écrase l'attribut `hidden` (UA stylesheet) */
+.ia-banner[hidden] { display: none; }
+.ia-banner button {
+  border: none;
+  background: transparent;
+  color: #92400e;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 0.2rem;
+}
+.ia-banner button:hover { color: #78350f; }
+/* Quota de séance restant, dans la barre d'actions (Générer (IA)) */
+.ia-quota {
+  font-size: 0.75rem;
+  color: #64748b;
+  margin-left: 0.3rem;
+}
+.ia-quota.error { color: #b91c1c; }
+
 /* Colophon : copyright, auteur, institution, date, version */
 #colophon {
   display: flex;

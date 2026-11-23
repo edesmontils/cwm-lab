@@ -43,6 +43,14 @@
   <div id="layout">
     <section id="editor-pane">
       <h2>Document — données (N3 / Turtle)</h2>
+      <!-- P9 : bannière « généré par IA, à vérifier » — visible tant
+           que le document contient la dernière génération (masquée
+           par toute édition manuelle, un chargement d'exercice, ou
+           le bouton ×). -->
+      <div id="ia-banner" class="ia-banner" hidden>
+        <span id="ia-banner-text">⚠ Données générées par IA — à vérifier avant raisonnement / interrogation.</span>
+        <button id="ia-banner-close" title="Masquer la bannière">×</button>
+      </div>
       <div id="editor"></div>
 
       <h2 class="mt1">Règles (N3)</h2>
@@ -88,6 +96,21 @@
             title="Générer la preuve de la clôture dans l'onglet « Preuve » — altérez-la ensuite à la main">Pourquoi&nbsp;?</button>
           <button id="btn-check" class="primary"
             title="Vérifier la preuve de l'onglet « Preuve » : la dérivation est re-jouée — une preuve altérée est rejetée">Vérifier&nbsp;la&nbsp;preuve</button>
+        </div>
+        <!-- P9 : génération de données par IA générative (proxy
+             institutionnel) — le texte généré arrive dans l'éditeur
+             (visible, modifiable), jamais en base cachée. -->
+        <div class="bar-group">
+          <span class="bar-title">Générer&nbsp;(IA)</span>
+          <button id="btn-ia" class="primary"
+            title="Générer un jeu de données N3 réaliste (domaine de l'exercice chargé, sinon générique) et l'injecter dans l'éditeur « données » — contrôlé (parse, cohérence, plausibilité), à vérifier">Remplir&nbsp;la&nbsp;base&nbsp;(IA)</button>
+          <label class="toolbar-label-light" for="ia-facts">faits&nbsp;≈</label>
+          <input id="ia-facts" type="number" min="5" max="2000" value="40"
+            title="nombre approximatif de faits à générer" style="width:4rem">
+          <label class="toolbar-label-light" for="ia-entities">entités&nbsp;≈</label>
+          <input id="ia-entities" type="number" min="2" max="500" value="10"
+            title="nombre approximatif d'entités à générer" style="width:4rem">
+          <span id="ia-quota" class="ia-quota"></span>
         </div>
       </div>
     </section>
@@ -146,6 +169,7 @@
           <button class="res-tab" data-tab="entail" role="tab">Entraînement</button>
           <button class="res-tab" data-tab="proof" role="tab">Preuve</button>
           <button class="res-tab" data-tab="export" role="tab">Export</button>
+          <button class="res-tab" data-tab="ia" role="tab">Génération (IA)</button>
         </div>
 
         <div class="res-pane active" id="pane-parse">
@@ -179,6 +203,11 @@
             <a id="export-download" class="download" download hidden>⬇ Télécharger</a>
             <button id="export-close">Fermer</button>
           </div>
+        </div>
+
+        <div class="res-pane" id="pane-ia">
+          <div id="ia-meta" class="tabmeta"></div>
+          <div id="ia-output" class="results"><p class="muted">Bouton « Remplir la base (IA) » : génère un jeu de données N3 réaliste (domaine de l'exercice chargé, sinon générique), contrôlé a posteriori (parse, cohérence avec les règles, plausibilité), et l'injecte dans l'éditeur « données ».</p></div>
         </div>
       </div>
     </section>

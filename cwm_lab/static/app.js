@@ -172,7 +172,7 @@ const n3Overlay = EditorView.decorations.of((view) => {
 // un point signale un résultat nouveau dans un onglet masqué.
 // ----------------------------------------------------------------------
 
-const TABS = ["parse", "infer", "query", "entail", "proof", "export"];
+const TABS = ["parse", "infer", "query", "entail", "proof", "export", "ia"];
 const tabButtons = {};
 const tabPanes = {};
 for (const name of TABS) {
@@ -304,6 +304,8 @@ function scheduleGraphRefresh(delay = 800) {
 const editorView = makeEditor("editor", EXAMPLE_KB, "n3", (delay) => {
   scheduleParse("kb", delay);
   scheduleGraphRefresh();
+  hideIaBanner();   // P9 : toute édition (manuelle ou chargement)
+                    // masque la bannière « généré par IA »
 });
 const rulesView = makeEditor("editor-rules", EXAMPLE_RULES, "n3", (delay) => {
   scheduleParse("rules", delay);
@@ -994,6 +996,11 @@ async function doLoadExercise() {
       window.alert("Impossible de charger l'exercice : " + msg);
       return;
     }
+    // P9 : contexte de l'exercice pour le prompt de génération
+    // (domaine = énoncé ; cohérence = règles) ; un nouvel exercice
+    // remplace le contexte précédent, y compris « aucun ».
+    loadedExercise = data.name;
+    currentEnonce = data.enonce || "";
     // Préchargement optionnel de la base URI.
     if (data.base_uri) baseUriInput.value = data.base_uri;
     // Remplir les éditeurs (dispatch → le linter re-parse tout seul).
@@ -1028,6 +1035,149 @@ async function doLoadExercise() {
 
 document.getElementById("btn-load-exercise").addEventListener("click", doLoadExercise);
 loadExercisesList();
+
+// ----------------------------------------------------------------------
+// P9 — Génération de données par IA générative (proxy institutionnel)
+// ----------------------------------------------------------------------
+// Le texte généré arrive **dans l'éditeur** (visible, modifiable,
+// supprimable) — jamais en base cachée ; une bannière « généré par
+// IA, à vérifier » reste visible jusqu'à une édition manuelle. Le
+// prompt est bâti sur l'exercice chargé (énoncé + règles) pour que
+// les données générées s'appliquent aux règles existantes ; les
+// contrôles a posteriori (parse, cohérence, plausibilité) et la
+// régénération bornée se font côté serveur (ia.py) ; le quota de
+// séance est compté côté backend (persisté avec le cache).
+
+const iaBanner = document.getElementById("ia-banner");
+const iaBannerText = document.getElementById("ia-banner-text");
+const iaQuota = document.getElementById("ia-quota");
+const iaMeta = document.getElementById("ia-meta");
+const iaOutput = document.getElementById("ia-output");
+let iaBusy = false;
+let loadedExercise = null;   // nom de l'exercice chargé (contexte du prompt)
+let currentEnonce = "";      // énoncé brut (Markdown) de l'exercice chargé
+
+function showIaBanner(note) {
+  iaBannerText.textContent = "⚠ Données générées par IA" +
+    (note ? " — " + note : "") +
+    " — à vérifier avant raisonnement / interrogation.";
+  iaBanner.hidden = false;
+}
+
+function hideIaBanner() {
+  iaBanner.hidden = true;
+}
+
+document.getElementById("ia-banner-close").addEventListener("click", hideIaBanner);
+
+// Le quota de séance (backend) pilote l'état du bouton.
+function setIaButton(s) {
+  const btn = document.getElementById("btn-ia");
+  const q = s.quota || {};
+  const quotaText = "quota du jour : " +
+    (q.requests_left != null ? q.requests_left : "?") +
+    " requête(s), " +
+    (q.tokens_left != null ? q.tokens_left : "?") + " tokens";
+  if (!s.enabled || s.reason) {
+    btn.disabled = true;
+    btn.title = s.reason || "IA non configurée";
+    iaQuota.textContent = s.reason ? quotaText + " — " + s.reason : "";
+    iaQuota.className = s.reason ? "ia-quota error" : "ia-quota";
+    return;
+  }
+  btn.disabled = false;
+  btn.title = "Générer des données N3 réalistes (domaine de l'exercice chargé) et les injecter dans l'éditeur « données » — contrôlées, à vérifier";
+  iaQuota.textContent = quotaText;
+  iaQuota.className = "ia-quota";
+}
+
+async function loadIaStatus() {
+  try {
+    const resp = await fetch("/api/ia/status");
+    const s = await resp.json();
+    setIaButton(s);
+  } catch {
+    // serveur injoignable : l'état du bouton reste tel quel
+  }
+}
+
+function renderIa(data) {
+  iaMeta.textContent = [
+    data.model ? "modèle : " + data.model : "",
+    data.attempts ? "tentative " + data.attempts : "",
+    data.tokens ? data.tokens + " tokens" : "",
+    data.elapsed_ms ? (Math.round(data.elapsed_ms / 100) / 10) + " s" : "",
+  ].filter(Boolean).join(" · ");
+  const parts = [];
+  if (data.ok) {
+    parts.push(`<p class="ok">✓ Génération acceptée (tentative ${data.attempts}) — les données sont dans l'éditeur « données ».</p>`);
+    if (data.note) parts.push(`<p class="muted">${esc(data.note)}</p>`);
+    const rows = (data.controls || []).map((c) => {
+      let detail = "";
+      if (c.warning) detail = " (avertissement : " + esc(c.warning) + ")";
+      else if (c.name === "parse" && c.statements != null) detail = " (" + c.statements + " faits)";
+      else if (c.name === "cohérence" && c.new_facts != null) detail = " (" + c.new_facts + " faits inférés)";
+      else if (c.name === "plausibilité") detail = " (" + c.facts + " faits, " + c.entities + " entités)";
+      else if (c.skipped) detail = " (" + esc(c.skipped) + ")";
+      return `<li class="${c.ok ? "ok" : "error"}">${esc(c.name)} : ${c.ok ? "✓" : "✗"}${detail}</li>`;
+    }).join("");
+    parts.push(`<ul>${rows}</ul>`);
+    parts.push(`<p class="muted">Les données générées sont <strong>dans l'éditeur « données »</strong> — lisez-les, corrigez-les, supprimez-les. Elles ne sont pas vérifiées par un humain : contrôlez les valeurs (et les seuils) par rapport à l'énoncé avant de raisonner ou d'interroger.</p>`);
+  } else {
+    parts.push(`<p class="error">✗ ${esc(data.error)}</p>`);
+    const rows = (data.controls || []).filter((c) => !c.ok).map((c) =>
+      `<li class="error">${esc(c.name)} : ${esc(c.error || "")}</li>`).join("");
+    if (rows) parts.push(`<ul>${rows}</ul>`);
+  }
+  iaOutput.innerHTML = parts.join("") || `<p class="muted">(vide)</p>`;
+  switchTab("ia");
+}
+
+async function doIaGenerate() {
+  if (iaBusy) return;
+  iaBusy = true;
+  const btn = document.getElementById("btn-ia");
+  btn.disabled = true;
+  const prevLabel = btn.textContent;
+  btn.textContent = "génération…";
+  iaOutput.innerHTML = `<p class="muted">Génération en cours… (quelques secondes — la réponse est contrôlée : parse, cohérence avec les règles, plausibilité ; en cas d'échec, régénération bornée, 3 tentatives au maximum).</p>`;
+  switchTab("ia");
+  const body = {
+    enonce: currentEnonce,
+    rules: rulesView.state.doc.toString(),
+    base_uri: baseUriInput.value.trim() || DEFAULT_BASE_URI,
+    facts: parseInt(document.getElementById("ia-facts").value, 10) || 40,
+    entities: parseInt(document.getElementById("ia-entities").value, 10) || 10,
+    exercise: loadedExercise,
+    timeout: 120,
+  };
+  try {
+    const resp = await fetch("/api/ia/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await resp.json();
+    renderIa(data);
+    if (data.ok) {
+      // Le texte généré arrive dans l'éditeur (dispatch → le linter
+      // re-parse et le graphe se rafraîchit tout seul) ; la bannière
+      // apparaît APRÈS (l'édition automatique la masquerait sinon).
+      setEditorText(editorView, data.n3);
+      showIaBanner(data.note);
+    }
+  } catch (e) {
+    iaOutput.innerHTML = `<p class="error">erreur réseau : ${esc(String(e))}</p>`;
+  } finally {
+    iaBusy = false;
+    btn.textContent = prevLabel;
+    // Le quota a changé (ou l'échec a un message à afficher) :
+    // l'état du bouton vient du serveur.
+    loadIaStatus();
+  }
+}
+
+document.getElementById("btn-ia").addEventListener("click", doIaGenerate);
 
 // ----------------------------------------------------------------------
 // Graphe (P5, option vis.js vendue en local ; P7 : panneau persistant)
@@ -1281,6 +1431,8 @@ fetch("/api/version")
   .catch(() => {});
 
 // Premier parse à l'ouverture + premier rendu du graphe (P7 : il est
-// visible d'emblée, sur les données préchargées).
+// visible d'emblée, sur les données préchargées) + état du bouton
+// IA (P9 : activé / désactivé selon la config, quota restant).
 parseNow("kb");
 refreshGraph();
+loadIaStatus();

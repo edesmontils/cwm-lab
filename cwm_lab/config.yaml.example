@@ -16,3 +16,25 @@
 
 # Nombre d'entrées du cache mémoire (défaut 64)
 #memory_entries: 64
+
+# P9 — IA générative : quotas de séance (comptés côté backend,
+# persistés avec le cache, réinitialisés chaque jour). Le quota de
+# ProxyIAg est celui d'une clé unique, commune à tous les étudiants
+# : c'est ici qu'un étudiant est empêché d'épuiser celui des autres.
+#
+# Requêtes par jour (défaut 30)
+#ia_max_requests: 30
+#
+# Tokens par jour (défaut 100000) — usage lu dans la réponse du proxy
+#ia_max_tokens: 100000
+#
+# Régénération bornée en cas de contrôle refusé (défaut 3)
+#ia_max_attempts: 3
+#
+# Délai d'appel du proxy, en secondes (défaut 120 — une génération
+# complète prend 30–60 s selon la taille demandée)
+#ia_timeout: 120
+#
+# Longueur maximale de la réponse du modèle, en tokens (défaut 4000 —
+# 2000 se coupait en pleine génération dès ~40 faits)
+#ia_max_tokens_response: 4000

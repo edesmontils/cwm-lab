@@ -34,7 +34,10 @@ valeurs par défaut s'appliquent, l'appli démarre sans config) :
   niveau), parseable en stdlib ;
 - ``.env`` (ignoré par git, chmod 600) — données sensibles /
   locales : ``CACHE_DIR`` (défaut ``~/.cache/lab_tp``) et, pour
-  la P9, ``IA_PROVIDER`` / ``IA_MODEL`` / ``IA_API_KEY``.
+  la P9, ``IA_URL`` / ``IA_MODEL`` / ``IA_API_KEY`` ;
+- ``config.yaml``, pour la P9 — plafonds de quota de séance de
+  l'IA : ``ia_max_requests``, ``ia_max_tokens``,
+  ``ia_max_attempts``, ``ia_timeout``, ``ia_max_tokens_response``.
 """
 
 # Copyright 2026 CWM 2.0 maintainers
@@ -65,9 +68,23 @@ DEFAULTS = {
     "ttl_disk": 7 * 86400.0,    # 7 jours
     "max_disk_bytes": 200 * 1024 * 1024,  # 200 Mo
     "memory_entries": 64,
-    "ia_provider": "",          # P9 (réservé)
-    "ia_model": "",             # P9 (réservé)
-    "ia_api_key": "",           # P9 (réservé)
+    # P9 — IA générative (voir ia.py)
+    "ia_provider": "",              # ex. "proxyiag" (URL par défaut)
+    "ia_url": "https://pedago.desmontils.net/proxyiag/v1",
+    "ia_model": "",
+    "ia_api_key": "",
+    "ia_max_requests": 30,          # requêtes par jour (séance)
+    "ia_max_tokens": 100000,        # tokens par jour (séance)
+    "ia_max_attempts": 3,           # régénération bornée
+    "ia_timeout": 120.0,            # appel proxy (secondes)
+    "ia_max_tokens_response": 4000,  # max_tokens demandé au modèle
+}
+
+#: URL par défaut par provider (API compatible OpenAI) — ``IA_URL``
+#: dans ``.env`` prime toujours.
+_PROVIDER_DEFAULT_URLS = {
+    "proxyiag": "https://pedago.desmontils.net/proxyiag/v1",
+    "openai": "https://api.openai.com/v1",
 }
 
 
@@ -150,6 +167,18 @@ def load_config(base_dir=None):
             cfg["max_disk_bytes"] = int(float(flat["max_disk_mb"])) * 1024 * 1024
         if "memory_entries" in flat:
             cfg["memory_entries"] = int(flat["memory_entries"])
+        # P9 — plafonds de quota de séance de l'IA
+        if "ia_max_requests" in flat:
+            cfg["ia_max_requests"] = max(1, int(flat["ia_max_requests"]))
+        if "ia_max_tokens" in flat:
+            cfg["ia_max_tokens"] = max(1, int(flat["ia_max_tokens"]))
+        if "ia_max_attempts" in flat:
+            cfg["ia_max_attempts"] = max(1, int(flat["ia_max_attempts"]))
+        if "ia_timeout" in flat:
+            cfg["ia_timeout"] = max(1.0, float(flat["ia_timeout"]))
+        if "ia_max_tokens_response" in flat:
+            cfg["ia_max_tokens_response"] = max(
+                200, int(flat["ia_max_tokens_response"]))
     except ValueError:
         pass
     # .env — données sensibles / locales
@@ -164,6 +193,12 @@ def load_config(base_dir=None):
         env_key = "IA_" + key.split("_", 1)[1].upper()
         if env.get(env_key):
             cfg[key] = env[env_key]
+    # P9 — URL du proxy : IA_URL prime ; sinon l'URL par défaut du
+    # provider (IA_PROVIDER) ; sinon la valeur par défaut (proxyiag).
+    if env.get("IA_URL"):
+        cfg["ia_url"] = env["IA_URL"].rstrip("/")
+    elif cfg["ia_provider"] in _PROVIDER_DEFAULT_URLS:
+        cfg["ia_url"] = _PROVIDER_DEFAULT_URLS[cfg["ia_provider"]]
     return cfg
 
 

@@ -16,7 +16,7 @@
 - **Auteur** : Emmanuel Desmontils
 - **Institution** : Nantes Université
 - **Copyright** : © 2026 Emmanuel Desmontils — Nantes Université
-- **Date** : 2026-11-23 (projet autonome ; livraison P0–P8 + reprise d'ergonomie P7)
+- **Date** : 2026-11-23 (projet autonome ; livraison P0–P9 + reprise d'ergonomie P7)
 - **Version** : `cwm_lab.__version__` (affichée dans le pied de
   page de l'outil, servie par `GET /api/version`)
 - **Licence** : Apache-2.0 (code, voir `LICENSE`) ; le moteur
@@ -109,6 +109,40 @@ porte le drapeau `cached`. Configuration facultative
 exemples commités) ; `cache.py`, 19 tests dont l'intégration
 serveur.
 
+**P9 livrée** (2026-11-23) : **remplissage de la base par IA
+générative** — le bouton **« Remplir la base (IA) »** (barre
+d'actions, taille paramétrable : ≈ N faits / M entités) génère un
+jeu de données N3 réaliste et l'injecte **dans l'éditeur « données
+»** (visible, modifiable, supprimable — jamais une base cachée),
+avec une bannière « généré par IA, à vérifier » masquée par toute
+édition manuelle. Le prompt est contraint (N3 **données seules**,
+aucune règle `log:implies` ; domaine = énoncé + règles de
+l'exercice chargé, sinon domaine générique ; valeurs réalistes qui
+déclenchent **et ne déclenchent pas** les seuils des règles
+existantes). L'appel part **du backend** vers un proxy API
+compatible OpenAI (défaut : ProxyIAg institutionnel) : le
+navigateur ne voit jamais la clé. **Contrôles a posteriori
+obligatoires** — 1 parse (et zéro règle détectée), 2 cohérence
+(raisonnement KB générée + règles existantes, absence de
+`log:false` ; timeout des règles non convergentes → avertissement,
+pas un rejet), 3 plausibilité structurelle (faits/entités dans la
+plage demandée, chaque entité typée) — et **régénération bornée**
+(3 tentatives, le prompt est enrichi des rejets précédents) puis
+signalement honnête. **Quotas de séance** (requêtes + tokens,
+plafonds `config.yaml`, comptés côté backend, **persistés avec le
+cache P8**, réinitialisés chaque jour) : épuisé → bouton
+désactivé. Hors cache P8 (non déterministe, coûteux). Absente la
+config (`.env`) → bouton désactivé avec message explicite, l'appli
+fonctionne sans IA. `ia.py` (+ extensions de `cache.py` et de
+`server.py`), 42 tests dont l'intégration serveur (proxy fictif,
+réseau jamais touché).
+
+**Confidentialité (opt-in)** : quand l'étudiant clique sur le
+bouton, l'énoncé et les règles de l'exercice chargé partent vers le
+provider pour construire le prompt (contexte de domaine). Rien
+n'est envoyé sans ce clic ; la taille et le contenu du prompt sont
+bornés (énoncé ≤ 8 k caractères, règles ≤ 6 k).
+
 **P7 livrée** (2026-11-23) : **reprise d'ergonomie** — l'interface
 est repensée pour un étudiant qui découvre l'outil :
 
@@ -164,21 +198,28 @@ cwm-lab --port 8080
 
 `pip install cwm-lab` résout automatiquement `cwm>=2.9.3` (CWM 2.0,
 fork, sur PyPI) ; en développement : `pip install -e .` depuis ce
-dépôt. `make test` exécute les tests unitaires (110) ; `make serve`
+dépôt. `make test` exécute les tests unitaires (152) ; `make serve`
 démarre le serveur.
 
-## Configuration (P8, facultative)
+## Configuration (P8/P9, facultative)
 
 L'appli démarre **sans aucun fichier de config** (valeurs par
-défaut). Deux fichiers optionnels, dans `cwm_lab/` :
+défaut ; l'IA est alors désactivée — le reste de l'outil
+fonctionne). Deux fichiers optionnels, dans `cwm_lab/` :
 
 - `config.yaml` — paramètres **non sensibles** : rétention du cache
   disque/mémoire (`ttl_disk`, `ttl_memory`), taille max disque,
-  nombre d'entrées mémoire. Installer :
+  nombre d'entrées mémoire, et pour la P9 les plafonds de **quota
+  de séance de l'IA** (`ia_max_requests`, `ia_max_tokens`,
+  `ia_max_attempts`, `ia_timeout`, `ia_max_tokens_response`).
+  Installer :
   `cp cwm_lab/config.yaml.example cwm_lab/config.yaml && chmod 600 cwm_lab/config.yaml` ;
 - `.env` — **données sensibles / locales** (ignoré par git) :
   répertoire du cache (`CACHE_DIR`, défaut `~/.cache/lab_tp`), et
-  pour la P9, provider/modèle/clé de l'IA (`IA_*`). Installer :
+  pour la P9 l'IA : `IA_URL` (défaut : le proxy institutionnel),
+  `IA_MODEL` (alias du modèle, ex. `proxyiag/mistral-small-24b`),
+  `IA_API_KEY` (clé `sk-…`, révoquable — **jamais** dans une config
+  versionnée). Installer :
   `cp cwm_lab/.env.example cwm_lab/.env && chmod 600 cwm_lab/.env`.
 
 ## Arborescence
@@ -193,8 +234,9 @@ cwm-lab/
 │   ├── __init__.py      # version
 │   ├── server.py        # http.server + endpoints /api/*
 │   ├── engine.py        # wrapper stateless sur les API swap (cœur testable)
-│   ├── cache.py         # P8 : cache deux niveaux (mémoire + disque)
-│   ├── config.yaml.example  # config non sensible (TTL, tailles) — facultatif
+│   ├── cache.py         # P8 : cache deux niveaux (mémoire + disque) + config
+│   ├── ia.py            # P9 : remplissage de la base par IA (proxy, contrôles)
+│   ├── config.yaml.example  # config non sensible (TTL, tailles, quotas IA)
 │   ├── .env.example         # config sensible (cache dir, IA) — facultatif
 │   ├── static/
 │   │   ├── index.html   # tableau de bord (2 colonnes — éditeurs + barre

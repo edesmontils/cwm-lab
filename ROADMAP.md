@@ -684,7 +684,7 @@ différent → recalcul ; erreur/timeout jamais cachés)
   les données cachées) — le client verra `true` seulement si la
   réponse vient du cache.
 
-### P9 — Remplissage de la base par IA générative (à faire, optionnelle)
+### P9 — Remplissage de la base par IA générative ✅ (livrée le 2026-11-23)
 
 **Objectif** : un bouton **« Remplir la base (IA) »** qui génère
 des données N3 réalistes et les injecte dans l'éditeur
@@ -751,7 +751,32 @@ annoncer aux étudiants).
 de recettes/patients réaliste, parsée, **cohérente avec les règles
 existantes** (0 `log:false`, les tableaux de l'énoncé se
 recalculent), en moins de 30 s, et une génération incohérente est
-**rejetée et régénérée** (jamais injectée telle quelle).
+**rejetée et régénérée** (jamais injectée telle quelle). ✔
+
+**Faits techniques établis en P9** (à réutiliser dans le TP) :
+
+- **le SPARQL de CWM 2.0 ne supporte ni agrégats ni `MINUS`** :
+  `COUNT(?x)` → « token inattendu "(" », et `FILTER isIRI(…)` /
+  `BIND` échouent de même (vérifié sur le serveur de dev). La
+  « garde SPARQL » de la spec n'est pas exprimable → la
+  plausibilité structurelle est calculée **en Python sur la
+  formule parsée** (parcours des énoncés, comme `engine.graph`) :
+  nb de faits, ressources distinctes, sujets sans `rdf:type` ;
+- **l'incohérence du contrôle 2 se vérifie par raisonnement**, pas
+  par requête : `engine.infer(kb=générée, rules=règles de
+  l'éditeur)` → `inconsistent` si `log:false` dans la clôture ;
+  le **timeout des règles non convergentes n'est pas un rejet**
+  (la KB d'origine de l'exercice aurait le même timeout) mais un
+  avertissement « cohérence non vérifiée » ;
+- ProxyIAg (API compatible OpenAI) : `POST {base_url}/chat/
+  completions`, `Authorization: Bearer sk-…`, usage dans
+  `usage.total_tokens` ; 400 avec `response_format: json_object`
+  → retente sans (certains modèles n'ont pas le mode JSON) ;
+  codes 429/≥500 traduits en messages génériques (les erreurs du
+  proxy ne sont jamais montrées à l'étudiant) ;
+- calibration `recettes` (référence des tests) : 577 faits,
+  74 ressources distinctes, 60 sujets-ressources, **0 sujet sans
+  `rdf:type`**.
 
 ## 4. Risques & points de vigilance
 
@@ -765,7 +790,7 @@ recalculent), en moins de 30 s, et une génération incohérente est
 | 6 | Politique « zéro dépendance » du dépôt | Backend stdlib ; CodeMirror commité dans `static/vendor/` ; **gunicorn** (P6) = dépendance de **déploiement** uniquement, jamais importée par le code du TP, dans `lab/requirements-deploy.txt` séparé |
 | 7 | Performance sur gros graphes | Hors périmètre TP (documents de TP < quelques centaines de triples) ; timeout de garde |
 | 8 | Timeout du raisonnement = thread **abandonné** (continue de tourner en fond) : OK en local-une-machine, vector de DoS (CPU/mémoire) sur un serveur partagé | P6 : raisonnement en subprocess tuable (pattern `check_proof`) + semaphore de concurrence |
-| 9 | IA générative (P9) : non-déterminisme, **quotas ProxyIAg** (nombre de requêtes + volume de tokens), **confidentialité** (les données des exercices partent vers le provider) | Prompt contraint + contrôles a posteriori obligatoires (parse, `log:false`, garde SPARQL), régénération bornée, **compteur de quotas côté backend persisté avec le cache P8** (quota atteint → bouton désactivé), opt-in documenté, clé API dans `.env` (ignoré par git, chmod 600 — jamais en config versionnée) |
+| 9 | IA générative (P9) : non-déterminisme, **quotas ProxyIAg** (nombre de requêtes + volume de tokens), **confidentialité** (les données des exercices partent vers le provider) | Prompt contraint + contrôles a posteriori obligatoires (parse, `log:false`, garde de plausibilité **en Python sur la formule parsée** — le SPARQL de CWM ne supporte ni agrégats ni `MINUS`), régénération bornée, **compteur de quotas côté backend persisté avec le cache P8** (quota atteint → bouton désactivé), opt-in documenté, clé API dans `.env` (ignoré par git, chmod 600 — jamais en config versionnée) |
 
 ## 5. Journal
 
@@ -791,3 +816,4 @@ recalculent), en moins de 30 s, et une génération incohérente est
 | 2026-11-23 | **Fix : exercices invisibles en installation non éditable** — `EXERCISES_DIR` pointait « un niveau au-dessus du paquet » (la racine du dépôt) : `pip install .` (non éditable) copie le paquet dans `site-packages/` sans le reste du dépôt → menu Exercice vide. Les exercices passent **dans le paquet** (`cwm_lab/exercises/`, package-data `exercises/**/*`) : visibles en source, en `-e` et en installation PyPI. Version `0.3.0` |
 | 2026-11-23 | **Fix : pastilles « attributs masqués »** (2 commits) — (1) les pastilles étaient positionnées avec `network.getPosition()` brut, qui renvoie les coordonnées **du réseau** (monde de la simulation) alors que la pastille est un élément HTML en coordonnées **écran** : avec le graphe recentré/zoomé (scale ≈ 0,17 sur `recettes`), le culling hors-canvas en coordonnées monde coupait quasiment toutes les pastilles → mode « attributs masqués » sans aucun compteur. Conversion monde → écran par la vue (vis 10.x n'expose pas `canvasToScreen` : `écran = monde × getScale() + (centre − getViewPosition() × getScale())`). (2) à la demande, les pastilles **échelonnent avec le zoom** : taille ET décalage depuis le centre du nœud multipliés par le scale de la vue (`transform: translate(-50%,-100%) scale(s)`), comme les nœuds et arcs du canvas — vérifié : le rapport de largeur des pastilles est égal au rapport de scale, au zoom avant (×1,61) comme au zoom arrière (×0,35) |
 | 2026-11-23 | **`cwm-lab` 0.3.0 publiée sur PyPI** — https://pypi.org/project/cwm-lab/0.3.0/ (wheel + sdist, nom `cwm-lab` libre, première publication) : les étudiants s'installent en une commande, `pip install cwm-lab` (résout `cwm>=2.9.3` sur PyPI — les deux paquets du projet y sont désormais). Parcours de validation : build local (wheel 39 fichiers — 4 modules, static/ + vendor vis/CodeMirror, 16 fichiers d'exercices, `.example`), upload TestPyPI, **installation en venv vierge depuis TestPyPI puis depuis PyPI** : serveur démarrable, `/api/version` 0.3.0, menu exercices `famille` + `recettes`, raisonnement vérifié (`log:implies` → fait inféré) |
+| 2026-11-23 | **P9 livrée** : remplissage de la base par IA générative — bouton « Remplir la base (IA) » (taille paramétrable ≈ N faits / M entités), prompt contraint (N3 **données seules** — zéro `log:implies`, domaine = énoncé + règles de l'exercice chargé sinon générique, valeurs réalistes qui déclenchent ET ne déclenchent pas les seuils, contexte entre balises `<domaine>`/`<regles>` traité comme donnée — anti-injection), appel **backend** `urllib` vers proxy API compatible OpenAI (défaut ProxyIAg institutionnel, HTTPS exigé — la clé ne transite jamais en clair ; le navigateur ne voit jamais la clé) ; **contrôles a posteriori** : parse (+ zéro règle), cohérence (`engine.infer` KB générée + règles existantes, absence de `log:false` ; timeout → avertissement, pas un rejet), plausibilité structurelle (faits/entités dans la plage ×0,5–×2, chaque entité typée) ; **régénération bornée** (3, prompt enrichi des rejets) puis signalement honnête ; **quotas de séance** (requêtes + tokens, plafonds `config.yaml`, comptés backend, **persistés avec le cache P8** — `ia_quota.json`, réinitialisés chaque jour, dégradation mémoire seule) ; texte généré **dans l'éditeur** + bannière « généré par IA, à vérifier » (masquée par toute édition) ; onglet de résultats « Génération (IA) » (contrôles, tentative, tokens, durée) ; **hors cache P8** ; absent la config → bouton désactivé avec raison explicite ; `cwm_lab/ia.py` (transport injectable), extensions `cache.py` (config `IA_URL` + quotas) et `server.py` (`GET /api/ia/status`, `POST /api/ia/generate` — 429 si quota épuisé) ; 42 tests (152 au total) dont intégration serveur (proxy fictif, réseau jamais touché) ; version 0.4.0. **Fait technique** : le SPARQL de CWM ne supporte ni agrégats (`COUNT` → « token inattendu "(" ») ni `MINUS`/`isIRI`/`BIND` → la garde de plausibilité est calculée en Python sur la formule parsée (la « garde SPARQL » de la spec n'est pas exprimable) |
