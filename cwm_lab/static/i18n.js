@@ -24,7 +24,11 @@ const MESSAGES = {
   fr: {
     // ── entête / barre d'outils ──────────────────────────────────────
     "page.title": "CWM Lab — CWM 2.0",
-    "header.sub": "— cohérence, validité, règles (CWM 2.0)",
+    "header.subPre": "— cohérence, validité, règles (",
+    "header.subPost": ")",
+    "header.docLinkText": "CWM 2.0",
+    "header.docTitle": "Documentation CWM 2.0 (README français)",
+    "header.docLink": "https://gitlab.univ-nantes.fr/desmontils-e/cwm/-/blob/main/README.md",
     "bar.baseUri": "Base URI",
     "bar.parse": "Parse",
     "bar.parseTitle": "Parse maintenant (⌘⏎ / Ctrl⏎)",
@@ -233,7 +237,11 @@ const MESSAGES = {
   en: {
     // ── header / toolbar ─────────────────────────────────────────────
     "page.title": "CWM Lab — CWM 2.0",
-    "header.sub": "— consistency, validity, rules (CWM 2.0)",
+    "header.subPre": "— consistency, validity, rules (",
+    "header.subPost": ")",
+    "header.docLinkText": "CWM 2.0",
+    "header.docTitle": "CWM 2.0 documentation (English README)",
+    "header.docLink": "https://gitlab.univ-nantes.fr/desmontils-e/cwm/-/blob/main/README.en.md",
     "bar.baseUri": "Base URI",
     "bar.parse": "Parse",
     "bar.parseTitle": "Parse now (⌘⏎ / Ctrl⏎)",
@@ -476,6 +484,11 @@ export function applyStatic() {
   });
   document.querySelectorAll("[data-i18n-aria]").forEach((el) => {
     el.setAttribute("aria-label", t(el.dataset.i18nAria));
+  });
+  // Liens dont la cible suit la langue (ex. le README de CWM 2.0) :
+  // chaque dictionnaire porte sa propre valeur de href.
+  document.querySelectorAll("[data-i18n-href]").forEach((el) => {
+    el.setAttribute("href", t(el.dataset.i18nHref));
   });
 }
 

@@ -147,7 +147,11 @@ bornés (énoncé ≤ 8 k caractères, règles ≤ 6 k).
 l'interface** — l'application est disponible en **français (par
 défaut) et en anglais**, avec un **sélecteur de langue dans la
 barre d'entête** (préférence persistée en localStorage ; `<html
-lang>` et le titre de page suivent la langue). Le module
+lang>` et le titre de page suivent la langue). Le texte
+**« CWM 2.0 »** du sous-titre de l'entête pointe vers le **README
+du dépôt CWM 2 dans la langue sélectionnée** (FR → `README.md`,
+EN → `README.en.md`, `target="_blank"` — attribut
+`data-i18n-href`). Le module
 `static/i18n.js` (zéro dépendance) porte les deux dictionnaires et
 applique les chaînes statiques via des attributs `data-i18n`
 (texte, placeholder, infobulles, aria) ; les chaînes dynamiques
