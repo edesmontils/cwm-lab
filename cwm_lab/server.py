@@ -104,6 +104,12 @@ STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 #: répertoire non créable) — l'API fonctionne alors sans cache.
 CACHE = None
 
+#: Empreinte du code + des données d'exercices au démarrage
+#: (:func:`cwm_lab.cache.code_signature`) : incluse dans la clé de
+#: cache — le cache disque (partagé, TTL 7 j) ne sert jamais une
+#: entrée écrite par une autre version du code.
+CODE_SIG = ""
+
 #: Configuration (P8/P9) : ``config.yaml`` + ``.env`` (voir
 #: :func:`cwm_lab.cache.load_config`). ``None`` = valeurs par défaut
 #: (l'appli démarre sans config ; l'IA est alors désactivée).
@@ -164,7 +170,10 @@ class Handler(BaseHTTPRequestHandler):
         global CACHE
         if CACHE is None:
             return compute()
-        key = cache.Cache.make_key(api, req)
+        # ``sig`` : empreinte du code — les entrées écrites par une
+        # autre version du code (cache disque partagé, TTL 7 j) ne
+        # sont jamais servies.
+        key = cache.Cache.make_key(api, req, sig=CODE_SIG)
         hit = CACHE.get(key)
         if hit is not None:
             out = dict(hit)
@@ -405,8 +414,13 @@ def main(argv=None):
     # Configuration (P8/P9) : config.yaml (TTL, tailles, quotas IA)
     # + .env (répertoire du cache, IA — sensible) ; absents, les
     # valeurs par défaut (l'IA est alors désactivée).
-    global CACHE, CONFIG
+    global CACHE, CODE_SIG, CONFIG
     CONFIG = cache.load_config()
+    # Empreinte du code + des données d'exercices : incluse dans la
+    # clé de cache — après un changement de code, les entrées du
+    # cache disque (partagé entre instances, TTL 7 j) ne sont plus
+    # servies (elles n'ont plus la même clé).
+    CODE_SIG = cache.code_signature()
     try:
         CACHE = cache.Cache(CONFIG)
     except Exception as e:  # le cache ne doit jamais bloquer le TP

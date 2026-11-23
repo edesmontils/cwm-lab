@@ -192,8 +192,14 @@ propres restent **sans étiquette** (démo du repli), et les
 **énoncés sont traduits** (`enonce.en.md` optionnel par exercice,
 `enonce.md` = repli). Les requêtes d'exercice sélectionnent des
 **ressources** (une variable sur `rdfs:label` doublerait les
-lignes). Le paramètre `lang` entre dans la clé de cache (rien à
-faire). 13 tests ; version `0.5.1`.
+lignes). Le paramètre `lang` entre dans la clé de cache ; et comme
+le cache disque est **partagé entre instances** et survit aux
+redémarrages (TTL 7 j), la clé porte aussi une **empreinte du code
+et des données d'exercices** (`cache.code_signature`, calculée au
+démarrage) : un changement de code invalide automatiquement tout le
+cache — jamais une entrée écrite par une version antérieure de
+l'engine. 13 tests + 2 tests de l'empreinte de cache ;
+version `0.5.1`.
 
 **P7 livrée** (2026-11-23) : **reprise d'ergonomie** — l'interface
 est repensée pour un étudiant qui découvre l'outil :

@@ -216,6 +216,52 @@ def cachable(result):
             and not result.get("timeout"))
 
 
+def code_signature(base_dir=None):
+    """Empreinte du **code et des données** qui produisent les résultats
+    mis en cache : tous les fichiers du paquet ``cwm_lab`` sauf
+    ``static/`` (fichiers vendus, sans effet sur l'API) et
+    ``__pycache__/`` — dont ``exercises/`` (données servies par
+    ``/api/exercise``).
+
+    Le cache disque survit aux redémarrages (TTL 7 j) et est **partagé
+    entre instances** : sans cette empreinte, une entrée écrite par
+    une ancienne version du code (ou de l'engine en mémoire d'un
+    processus lancé avant un ``git pull``) serait servie à la nouvelle.
+    Elle est incluse dans la clé (:meth:`Cache.make_key`) : tout
+    changement de code ou de données invalide automatiquement le
+    cache. Calculée une fois au démarrage (``server.main``).
+
+    ``base_dir`` : dossier du paquet (défaut : celui de ce module).
+    Renvoie ``""`` si le dossier est introuvable (le cache reste
+    fonctionnel, sans ce garde-fou).
+    """
+    if base_dir is None:
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+    if not os.path.isdir(base_dir):
+        return ""
+    h = hashlib.sha256()
+    try:
+        walker = os.walk(base_dir)
+        for dirpath, dirnames, filenames in walker:
+            dirnames[:] = sorted(d for d in dirnames
+                                 if d not in ("static", "__pycache__"))
+            for name in sorted(filenames):
+                if name == ".DS_Store":
+                    continue
+                full = os.path.join(dirpath, name)
+                rel = os.path.relpath(full, base_dir)
+                h.update(rel.encode("utf-8"))
+                try:
+                    with open(full, "rb") as f:
+                        for chunk in iter(lambda: f.read(65536), b""):
+                            h.update(chunk)
+                except OSError:
+                    pass  # fichier disparu entre listdir et open
+    except OSError:
+        return ""
+    return h.hexdigest()[:16]
+
+
 class Cache:
     """Cache à deux niveaux (mémoire LRU + disque persisté), thread-safe.
 
@@ -250,13 +296,17 @@ class Cache:
     # clé
     # ------------------------------------------------------------------
     @staticmethod
-    def make_key(api, payload):
-        """Clé = ``<api>/<sha256>`` où sha256 porte sur l'endpoint et le
-        **payload complet** (JSON canonique, clés triées) : toute
-        variation d'un caractère force le recalcul."""
+    def make_key(api, payload, sig=""):
+        """Clé = ``<api>-<sha256>`` où sha256 porte sur l'endpoint,
+        l'**empreinte du code** (:func:`code_signature` — un
+        changement de code ou de données d'exercices invalide tout le
+        cache disque) et le **payload complet** (JSON canonique,
+        clés triées) : toute variation d'un caractère force le
+        recalcul."""
         canon = json.dumps(payload, sort_keys=True, ensure_ascii=False,
                            separators=(",", ":"))
-        digest = hashlib.sha256((api + "\x00" + canon).encode("utf-8"))
+        digest = hashlib.sha256(
+            (api + "\x00" + sig + "\x00" + canon).encode("utf-8"))
         # plat (pas de « / ») : un fichier par clé dans le répertoire
         # du cache — l'évacuation par taille scanne un seul niveau
         return api + "-" + digest.hexdigest()

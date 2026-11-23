@@ -914,9 +914,18 @@ d'exercices** sont traduits (`enonce.en.md`).
   (`?pat`, `?rec`, `?cond`) — plus de `rdfs:label ?libPat` (sinon
   une ligne par libellé) ; l'interface traduit les URI en libellés
   choisis ;
-- **cache** : `lang` dans la requête → clé de cache distincte, rien
-  à faire ; **IA (P9)** : `entities` = simple comptage, prompt reste
-  FR — aucun changement.
+- **cache** : `lang` dans la requête → clé de cache distincte ;
+  **mais** le cache disque est **partagé entre instances** et
+  survit aux redémarrages (TTL 7 j) : une entrée écrite par une
+  ancienne version du code (ex. instance éditée lancée avant le
+  changement, engine gelé en mémoire) serait servie à la nouvelle.
+  Garde-fou ajouté : **empreinte du code** (`cache.code_signature` —
+  hash des `.py` du paquet + `exercises/`, `static/` exclue) incluse
+  dans `Cache.make_key` : tout changement de code/données invalide
+  automatiquement le cache disque (`server.CODE_SIG`, calculée au
+  démarrage) ;
+- **IA (P9)** : `entities` = simple comptage, prompt reste FR —
+  aucun changement.
 
 **Faits techniques établis en P10.1** (à réutiliser) :
 
@@ -932,6 +941,15 @@ d'exercices** sont traduits (`enonce.en.md`).
 - en mode « attributs masqués », un `rdfs:label` est déjà LE
   libellé du nœud : il est **exclu** des attributs masqués
   (sinon « label Alice » apparaissait en pastille/bulle).
+- Python ne fait pas de hot-reload : un processus lancé avant un
+  changement de code garde l'engine **en mémoire** (fichiers `.py`
+  lus au démarrage), tandis que les **statiques sont re-lues à
+  chaque requête** — d'où des instances « front nouveau + backend
+  ancien » silencieuses ; redémarrer le serveur après un pull ;
+- le cache disque (`~/.cache/lab_tp` par défaut) est **partagé
+  entre toutes les instances** : d'où l'empreinte de code dans la
+  clé (ci-dessus) ; `ia_quota.json` y vit aussi (ne pas vider le
+  répertoire sans précaution).
 
 **Critère d'acceptation** : la bascule FR ↔ EN affiche les
 libellés d'ontologie (graphe, lignes de requête, nouveaux faits,
@@ -984,3 +1002,4 @@ bilingues, repli sans `enonce.en.md`)
 | 2026-11-23 | **P10 — lien doc CWM 2.0 dans l'entête** : le texte « CWM 2.0 » du sous-titre de l'entête **link le README du dépôt CWM 2 (GitLab) dans la langue sélectionnée** — FR → `README.md`, EN → `README.en.md` (`target="_blank"`, infobulle localisée) ; nouveau mécanisme `data-i18n-href` dans `i18n.js` (la cible du lien est localisée comme le reste de l'interface : chaque dictionnaire porte sa propre URL, appliquée à l'init et au changement de langue) ; vérifié en navigateur (bascule FR↔EN : href, texte et infobulle suivent la langue, zéro erreur console) |
 | 2026-11-23 | **`cwm-lab` 0.5.0 publiée sur PyPI** — https://pypi.org/project/cwm-lab/0.5.0/ (wheel + sdist) : la P10 complète (i18n FR/EN + sélecteur d'entête + lien doc CWM 2.0 localisé) est installable en `pip install cwm-lab`. Validation : wheel 41 entrées (`i18n.js` présent, `.env` **absent**), **installation en venv vierge depuis PyPI** : version 0.5.0, lien d'entête + cibles FR/EN dans le HTML/i18n installés, `cwm_lab.ia.LANGS` importable. *Nuance TestPyPI* : la 0.5.0 de l'index de test est un build préliminaire (avant le lien d'entête) — non remplaçable (nom de fichier consommé, l'API de suppression TestPyPI n'existe plus) ; seule la PyPI fait foi |
 | 2026-11-23 | **P10.1 livrée** : libellés bilingues des ontologies d'exercices — `rdfs:label` `@fr`/`@en` sur les classes/propriétés/individus des deux exercices (prédicats/classes **typés** `rdfs:Property`/`rdfs:Class` — le contrôle de plausibilité IA exige 0 sujet non typé), noms propres **sans étiquette** (démo du repli), 3 maladies des corrigés libellées FR+EN ; **résolution côté backend** (`engine._label_index`/`_pick_label` : langue de l'app → sans étiquette → premier, déterministe après `canonicalize()`) — `lang` sur `infer`/`query`/`graph`/`list_exercises`/`load_exercise`, appliqué aux nouveaux faits, aux lignes de requête (diff sur valeurs brutes puis traduit), aux nœuds/arcs/attributs du graphe ; **énoncés traduits** (`enonce.en.md` optionnel, `enonce.md` = repli, titre du menu = 1er `#` de la langue) ; requêtes d'exercice sur **ressources** (plus de `rdfs:label ?libPat` — doublons) ; front : `lang` dans les bodies + `?lang=`, au changement de langue re-fetch infer/query/énoncé + **mise à jour in place** des DataSets vis (pas de reconstruction du réseau), éditeurs jamais touchés ; `rdfs:label` exclu des attributs masqués (déjà le libellé du nœud) ; recalibrage IA : `recettes` 774 faits / 108 entités (577/74 avant) ; 13 tests `TestLabelsI18n` (178 au total) ; version 0.5.1 |
+| 2026-11-24 | **Fix P10.1 — cache disque partagé : empreinte du code dans la clé** : reproduction du signalement « le graphe / l'énoncé ne changent pas à la bascule de langue » — deux causes : (1) les instances lancées avant le code P10.1 (install éditable 8000, dev 8765) gardaient l'engine **en mémoire** (pas de hot-reload Python) alors que les statiques sont re-lues à chaque requête → front nouveau + backend ancien ; (2) le **cache disque est partagé entre instances** (TTL 7 j) et sa clé ne dépendait que du payload : des entrées écrites par l'ancien engine (qui ignorait `lang`) étaient servies au nouveau. Correction : `cache.code_signature()` (hash des `.py` du paquet + `exercises/`, `static/` exclue) incluse dans `Cache.make_key` (`sig`, calculée au démarrage — `server.CODE_SIG`) : tout changement de code ou de données d'exercices invalide automatiquement le cache disque ; 131 entrées obsolètes purgées (`ia_quota.json` préservé) ; instances 8000/8931 redémarrées ; 2 tests (`make_key` sensible à `sig`, `code_signature` stable/sensible/`""` si dossier absent) — 180 tests OK ; vérifié en navigateur sur 8000 : bascule FR↔EN, énoncé + meta + libellés du graphe in place, zéro erreur console ; version inchangée (0.5.1 non publiée) |

@@ -143,6 +143,45 @@ class TestCache(unittest.TestCase):
         self.assertEqual(cache.Cache.make_key("parse", {"text": ":a :b :c ."}),
                          k1)         # stable
 
+    def test_cle_sensible_a_l_empreinte_du_code(self):
+        """Une entrée écrite par une autre version du code (empreinte
+        différente) n'est jamais servie : le cache disque est partagé
+        entre instances et survit aux redémarrages (TTL 7 j)."""
+        k1 = cache.Cache.make_key("parse", {"text": "x"}, sig="aaa")
+        k2 = cache.Cache.make_key("parse", {"text": "x"}, sig="bbb")
+        k3 = cache.Cache.make_key("parse", {"text": "x"})  # sig vide
+        self.assertNotEqual(k1, k2)
+        self.assertNotEqual(k1, k3)
+        self.assertEqual(k1, cache.Cache.make_key("parse", {"text": "x"},
+                                                   sig="aaa"))  # stable
+        # et la persistance respecte l'empreinte : une instance au
+        # code « bbb » ne voit pas l'entrée écrite au code « aaa »
+        self.c.put(k1, {"ok": True, "n": 1})
+        self.assertIsNone(self.c.get(k2))
+        self.assertEqual(self.c.get(k1), {"ok": True, "n": 1})
+
+    def test_code_signature(self):
+        sig = cache.code_signature()
+        self.assertTrue(sig)
+        # stable (même contenu → même empreinte)
+        self.assertEqual(sig, cache.code_signature())
+        # sensible au contenu d'un fichier du paquet
+        import cwm_lab
+        pkg = os.path.dirname(os.path.abspath(cwm_lab.__file__))
+        cible = os.path.join(pkg, "exercises", "README.md")
+        try:
+            with open(cible, "rb") as f:
+                original = f.read()
+            with open(cible, "ab") as f:
+                f.write(b"# test\n")
+            self.assertNotEqual(sig, cache.code_signature())
+        finally:
+            with open(cible, "wb") as f:
+                f.write(original)
+        self.assertEqual(sig, cache.code_signature())
+        # dossier introuvable → "" (le cache reste fonctionnel)
+        self.assertEqual(cache.code_signature("/chemin/introuvable"), "")
+
     def test_persistance_disque(self):
         """Un nouveau Cache (mémoire vide) retrouve la donnée sur disque."""
         k = cache.Cache.make_key("infer", {"kb": "x"})
