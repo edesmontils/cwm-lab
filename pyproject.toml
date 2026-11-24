@@ -17,7 +17,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cwm-lab"
-version = "0.5.4"
+version = "0.5.5"
 description = "CWM Lab — local web dashboard over CWM 2.0: N3/Turtle parsing, forward-chaining reasoning, SPARQL, proofs, triple graph, AI data generation — semantic web teaching lab (FR/EN) (outil de TP Web sémantique)"
 readme = "README.md"
 # Licence : Apache-2.0 (voir LICENSE). Le moteur CWM 2.0, dépendance,

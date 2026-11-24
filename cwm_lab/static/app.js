@@ -70,8 +70,8 @@ import {
   syntaxHighlighting, HighlightStyle,
   linter, lintGutter, forceLinting,
   tags, turtle, basicSetup,
-} from "/static/vendor/codemirror/codemirror.js";
-import { t, onLangChange, lang as i18nLang } from "/static/i18n.js";
+} from "./vendor/codemirror/codemirror.js";
+import { t, onLangChange, lang as i18nLang } from "./i18n.js";
 
 // URI de base par défaut — identique à engine.DEFAULT_BASE_URI.
 const DEFAULT_BASE_URI = "http://example.org/document.n3";
@@ -223,7 +223,7 @@ function runParse(text, base_uri, language = "n3") {
   if (inflight && inflight.key === key) return inflight.promise;
   inflight = {
     key,
-    promise: fetch("/api/parse", {
+    promise: fetch("api/parse", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text, base_uri, language }),
@@ -464,7 +464,7 @@ async function doExport(format) {
   exportFormat.textContent = "→ " + EXPORT_LABEL[format];
   exportOutput.classList.remove("error");
   try {
-    const resp = await fetch("/api/serialize", {
+    const resp = await fetch("api/serialize", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text, base_uri, format }),
@@ -576,7 +576,7 @@ async function doInfer() {
   inferOutput.innerHTML = `<p class="muted">${t("infer.busy")}</p>`;
   const body = inferBody();
   try {
-    const resp = await fetch("/api/infer", {
+    const resp = await fetch("api/infer", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
@@ -718,7 +718,7 @@ async function doQuery() {
   // (i18n P10.1).
   const body = queryBody(reason);
   try {
-    const resp = await fetch("/api/query", {
+    const resp = await fetch("api/query", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
@@ -819,7 +819,7 @@ async function doEntail() {
   entailOutput.innerHTML = `<p class="muted">${t("entail.busy")}</p>`;
   const opts = reasoningOptions();
   try {
-    const resp = await fetch("/api/entail", {
+    const resp = await fetch("api/entail", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -887,7 +887,7 @@ async function doWhy() {
   proofOutput.innerHTML = `<p class="muted">${t("prove.busy")}</p>`;
   const opts = reasoningOptions();
   try {
-    const resp = await fetch("/api/prove", {
+    const resp = await fetch("api/prove", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -948,7 +948,7 @@ async function doCheck() {
   btn.textContent = t("btn.checking");
   proofOutput.innerHTML = `<p class="muted">${t("check.busy")}</p>`;
   try {
-    const resp = await fetch("/api/check", {
+    const resp = await fetch("api/check", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ proof: proofView.state.doc.toString() }),
@@ -988,7 +988,7 @@ async function loadExercisesList() {
     // courante (le re-rendu de changement de langue rappelle cette
     // fonction — la sélection est conservée).
     const selected = exerciseSelect.value;
-    const resp = await fetch("/api/exercises?lang=" + encodeURIComponent(i18nLang()));
+    const resp = await fetch("api/exercises?lang=" + encodeURIComponent(i18nLang()));
     const data = await resp.json();
     if (!data.ok || !Array.isArray(data.exercises)) return;
     exerciseSelect.innerHTML = "";
@@ -1016,7 +1016,7 @@ async function doLoadExercise() {
   try {
     // i18n P10.1 : l'énoncé est servi dans la langue courante
     // (enonce.en.md s'il existe, sinon enonce.md).
-    const resp = await fetch("/api/exercise?name=" + encodeURIComponent(name) +
+    const resp = await fetch("api/exercise?name=" + encodeURIComponent(name) +
       "&lang=" + encodeURIComponent(i18nLang()));
     const data = await resp.json();
     if (!data.ok) {
@@ -1127,7 +1127,7 @@ function setIaButton(s) {
 
 async function loadIaStatus() {
   try {
-    const resp = await fetch("/api/ia/status?lang=" + i18nLang());
+    const resp = await fetch("api/ia/status?lang=" + i18nLang());
     const s = await resp.json();
     setIaButton(s);
   } catch {
@@ -1196,7 +1196,7 @@ async function doIaGenerate() {
     lang: i18nLang(),   // messages de l'IA (erreurs, contrôles) localisés
   };
   try {
-    const resp = await fetch("/api/ia/generate", {
+    const resp = await fetch("api/ia/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
@@ -1448,7 +1448,7 @@ async function fetchGraphData(reason, hide) {
     hide_literals: hide,
     lang: i18nLang(),   // i18n P10.1 : libellés d'ontologie dans la langue courante
   };
-  const resp = await fetch("/api/graph", {
+  const resp = await fetch("api/graph", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -1568,7 +1568,7 @@ resizer.addEventListener("pointerup", () => {
 
 // Colophon : la version vient du serveur (source unique :
 // lab.lab_web.__version__), le reste est statique dans le HTML.
-fetch("/api/version")
+fetch("api/version")
   .then((r) => r.json())
   .then((d) => {
     const el = document.getElementById("version");
@@ -1617,7 +1617,7 @@ document.addEventListener("keydown", (e) => {
 // précédent.
 async function refreshInferResults() {
   try {
-    const resp = await fetch("/api/infer", {
+    const resp = await fetch("api/infer", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(inferBody()),
@@ -1631,7 +1631,7 @@ async function refreshQueryResults() {
   // (rows_reasoned n'est absent que dans ce cas.)
   const reason = lastRender.query.rows_reasoned != null;
   try {
-    const resp = await fetch("/api/query", {
+    const resp = await fetch("api/query", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(queryBody(reason)),
@@ -1643,7 +1643,7 @@ async function refreshQueryResults() {
 async function refreshEnonce() {
   const name = lastRender.exercise;
   try {
-    const resp = await fetch("/api/exercise?name=" + encodeURIComponent(name) +
+    const resp = await fetch("api/exercise?name=" + encodeURIComponent(name) +
       "&lang=" + encodeURIComponent(i18nLang()));
     const data = await resp.json();
     if (!data.ok) return;
