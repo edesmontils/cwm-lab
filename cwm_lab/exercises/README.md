@@ -1,5 +1,7 @@
 # exercises/ — exercices du TP
 
+*Version française — l'anglais est dans [`README.en.md`](README.en.md).*
+
 Un **exercice** est un sous-dossier de ce répertoire. L'outil le
 découvre automatiquement (menu **Exercice** du bandeau) et le charge
 dans les éditeurs via `GET /api/exercise?name=<dossier>`.
@@ -41,7 +43,8 @@ puis premier libellé présent. La résolution se fait **côté backend** :
 | [`recettes/`](recettes/enonce.md) | ~60–90 min | exercice principal : contre-indications alimentaires calculées par règles N3 (allergènes absolus + nutriments à seuil, avec calculs `math:`) sur 9 recettes et 5 patients ; 6 exercices, corrigés (`corriges/`) + discussion des limites du modèle |
 
 **Guide enseignant** (déroulé 2 h, points de vigilance, barème) :
-[`GUIDE_ENSEIGNANT.md`](GUIDE_ENSEIGNANT.md).
+[`GUIDE_ENSEIGNANT.md`](GUIDE_ENSEIGNANT.md) (anglais :
+[`GUIDE_ENSEIGNANT.en.md`](GUIDE_ENSEIGNANT.en.md)).
 
 ## Vérifier un exercice sans l'outil
 
