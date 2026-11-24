@@ -326,9 +326,10 @@ const LABEL_KEY = { kb: "label.document", rules: "label.rules",
                     proof: "label.proof" };
 const labelOf = (which) => t(LABEL_KEY[which] || which);
 // Libellés des documents taguant les erreurs (kb / rules / query /
-// concl / proof) — localisés.
+// concl / proof / server — P6 : « serveur occupé ») — localisés.
 const DOC_KEY = { kb: "doc.data", rules: "doc.rules", query: "doc.query",
-                  concl: "doc.conclusion", proof: "doc.proof" };
+                  concl: "doc.conclusion", proof: "doc.proof",
+                  server: "doc.server" };
 const docLabel = (which) => t(DOC_KEY[which] || which);
 
 // i18n : dernier état de chaque rendu — un changement de langue

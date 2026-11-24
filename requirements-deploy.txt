@@ -1,0 +1,11 @@
+# Dépendance de DÉPLOIEMENT UNIQUEMENT (P6) — le code du TP n'en a
+# besoin pour RIEN : l'application tourne en zéro dépendance
+# (stdlib Python + navigateur), et les tests ne l'utilisent pas.
+#
+#   pip install -r requirements-deploy.txt
+#   gunicorn cwm_lab.server:app --bind 0.0.0.0:8000 --workers 2
+#
+# gunicorn est une exception encadrée à la politique zéro dépendance :
+# il fait tourner l'application WSGI (cwm_lab.server:app) en mode
+# préfect : plusieurs processus, supervision, redémariage automatique.
+gunicorn>=21

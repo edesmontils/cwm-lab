@@ -401,6 +401,316 @@ def _infer_result(errors=None, timeout=False, new_facts=(),
     }
 
 
+# ----------------------------------------------------------------------
+# P6 — clôture en subprocess tuable + semaphore de concurrence
+# ----------------------------------------------------------------------
+
+#: Marqueur de la ligne de résultat sur le stdout du worker (le
+#: moteur CWM peut imprimer d'autres choses au chargement —
+#: « loaded from file » & co).
+_CLOSURE_RESULT_MARKER = "CWM_TP_RESULT: "
+
+#: P6 — semaphore de concurrence des raisonnements (``None`` = sans
+#: plafond, défaut local). Le serveur fixe le plafond au démarrage
+#: (:func:`set_reason_limit`, ``max_reason_concurrent`` de
+#: ``config.yaml``, défaut 8) : au-delà, une requête de raisonnement
+#: ne **pas** en file d'attente — elle reçoit immédiatement une
+#: réponse « busy » (HTTP 503 côté serveur).
+_reason_sem = None
+
+
+def set_reason_limit(n):
+    """P6 — fixe le plafond de raisonnements simultanés.
+
+    ``n`` (int > 0) : au plus ``n`` clôtures (``think``/
+    ``applyRules`` en subprocess) en parallèle ; au-delà, les
+    fonctions de raisonnement renvoient immédiatement
+    ``busy: true`` (le serveur répond 503 « serveur occupé »).
+    ``0`` (ou moins) : sans plafond — défaut local (les appels
+    directs de :mod:`cwm_lab.engine` sans serveur, ex. les tests,
+    conservent le comportement d'origine).
+    """
+    global _reason_sem
+    try:
+        n = int(n)
+    except (TypeError, ValueError):
+        n = 0
+    _reason_sem = threading.BoundedSemaphore(n) if n > 0 else None
+
+
+def _busy_error():
+    """P6 — erreur « serveur occupé » (plafond de concurrence
+    atteint, :func:`set_reason_limit`) — le serveur répond 503."""
+    return {"doc": "server", "line": 0, "column": 0,
+            "message": "serveur occupé : trop de raisonnements en "
+                       "cours (plafond de concurrence) — réessayez "
+                       "dans un instant"}
+
+
+def _run_closure(op, kb_text, rules_text, base_uri=DEFAULT_BASE_URI,
+                 mode="think", store_rules=False, lang="fr", timeout=10.0):
+    """P6 — clôture (ou preuve) dans un **subprocess tuable**.
+
+    Risque #8 ROADMAP : avant P6, la clôture tournait dans un thread
+    démon **abandonné** au timeout — il continuait de consommer
+    CPU/mémoire jusqu'à convergence ou OOM : un vecteur de DoS quand
+    des étudiants partagent le serveur. La clôture est désormais
+    calculée dans un subprocess (``python -m cwm_lab._reason_worker``)
+    qui est **tué** au timeout (même pattern que
+    :func:`check_proof`) : au timeout, plus rien ne tourne en fond.
+
+    Les paramètres passent en JSON sur stdin ; le résultat est la
+    dernière ligne de stdout marquée :data:`_CLOSURE_RESULT_MARKER`
+    (voir :mod:`cwm_lab._reason_worker`).
+
+    Renvoie un dictionnaire :
+
+    - ``{"ok": True, "count": …, "closure_statements": …,
+      "rules_in_closure": …, "elapsed_ms": …}`` + selon ``op`` :
+      ``"closure_n3"`` (``op="closure"`` — le texte N3 de la clôture,
+      à re-parser par l'appelant), ``"new_facts"`` / ``"inconsistent"``
+      (``op="infer"`` — le résultat final de :func:`infer`),
+      ``"proof"`` (``op="prove"`` — la preuve N3 auto-suffisante) ;
+    - ``{"timeout": True, "elapsed_ms": …}`` : tué au délai ;
+    - ``{"busy": True}`` : plafond de concurrence atteint (P6) ;
+    - ``{"error": "…"}`` : échec du worker (crash, sortie illisible).
+    """
+    if mode not in ("think", "once"):
+        return {"error": ("mode inconnu : %r (attendu : \"think\" ou "
+                          "\"once\")" % mode)}
+    try:
+        timeout = float(timeout)
+    except (TypeError, ValueError):
+        timeout = 10.0
+    if timeout < 0:
+        timeout = 0.0
+
+    if _reason_sem is not None and not _reason_sem.acquire(blocking=False):
+        return {"busy": True}
+    held = _reason_sem is not None
+    start = time.monotonic()
+    params = json.dumps({
+        "op": op, "kb": kb_text, "rules": rules_text,
+        "base_uri": base_uri, "mode": mode,
+        "store_rules": store_rules, "lang": lang,
+    }, ensure_ascii=False)
+    try:
+        proc = subprocess.Popen(
+            [sys.executable, "-m", "cwm_lab._reason_worker"],
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE)
+        try:
+            out, err = proc.communicate(params.encode("utf-8"),
+                                        timeout=timeout if timeout > 0
+                                        else None)
+        except subprocess.TimeoutExpired:
+            # Tué explicitement (et attendu) : au timeout, plus rien ne
+            # tourne en fond — c'est le point central du risque #8.
+            # (``subprocess.run`` ne le fait que de façon implicite et
+            # version-dépendante : on reste explicite.)
+            proc.kill()
+            proc.wait()
+            for stream in (proc.stdin, proc.stdout, proc.stderr):
+                if stream is not None:
+                    stream.close()
+            return {"timeout": True,
+                    "elapsed_ms": int((time.monotonic() - start) * 1000)}
+    except (OSError, ValueError) as e:
+        return {"error": "échec du raisonnement : %s: %s"
+                % (type(e).__name__, e)}
+    finally:
+        if held:
+            _reason_sem.release()
+    elapsed_ms = int((time.monotonic() - start) * 1000)
+    result = None
+    for line in (out or b"").decode("utf-8", "replace").splitlines():
+        if line.startswith(_CLOSURE_RESULT_MARKER):
+            try:
+                result = json.loads(line[len(_CLOSURE_RESULT_MARKER):])
+            except ValueError:
+                result = None
+    if isinstance(result, dict):
+        result["elapsed_ms"] = elapsed_ms
+        return result
+    tail = (err or b"").decode("utf-8", "replace").strip().splitlines()
+    return {"error": "échec du raisonnement : %s"
+            % (tail[-1] if tail else "aucun résultat du worker")}
+
+
+def _closure_result(op, kb_text, rules_text, base_uri=DEFAULT_BASE_URI,
+                    mode="think", store_rules=False, lang="fr"):
+    """P6 — clôture **in-process**, exécutée dans le subprocess
+    worker (:mod:`cwm_lab._reason_worker`) — jamais appelée depuis
+    le processus serveur.
+
+    Parse les données et les règles (mêmes erreurs de syntaxe que
+    les fonctions in-process), applique ``think``/``applyRules``, et
+    renvoie le résultat sérialisé selon ``op`` :
+
+    - ``"closure"`` : ``closure_n3`` (texte N3 de la clôture, URIs
+      absolues — re-parseable dans n'importe quel contexte) +
+      compteurs ;
+    - ``"infer"`` : le diff des nouveaux faits (calculé **dans le
+      subprocess**, sur le même store — l'identité des nœuds vides
+      est préservée) + libellés ``rdfs:label`` choisis dans ``lang``
+      + incohérence ;
+    - ``"prove"`` : la preuve N3 auto-suffisante (suivi ``why=`` +
+      ``explainFormula`` — le garde de suivi vit dans le subprocess,
+      plus rien à réinitialiser côté serveur).
+
+    Renvoie ``{"ok": False, "errors": […]}`` en cas d'erreur de
+    syntaxe ou interne (mêmes formes que la fonction appelante).
+    """
+    if mode not in ("think", "once"):
+        return {"ok": False, "errors": [{
+            "doc": "rules", "line": 0, "column": 0,
+            "message": "mode inconnu : %r (attendu : \"think\" ou \"once\")"
+                       % mode,
+        }]}
+    from swap.query.query import applyRules, think
+
+    setVerbosity(0)
+    store = llyn.RDFStore()
+    formula = store.newFormula(base_uri + "#_work")
+    parser = notation3.SinkParser(store, formula, thisDoc=base_uri)
+    try:
+        parser.startDoc()
+        parser.feed(kb_text.encode("utf-8"))
+        parser.endDoc()
+        kb_closed = formula.close()
+    except BadSyntax as e:
+        line, column = _position(e)
+        return {"ok": False, "errors": [{
+            "doc": "kb", "line": line, "column": column, "message": e._why,
+        }]}
+    except Exception as e:
+        return {"ok": False, "errors": [{
+            "doc": "kb", "line": 0, "column": 0,
+            "message": "erreur interne : %s: %s" % (type(e).__name__, e),
+        }]}
+    rules_formula = store.newFormula(base_uri + "#_rules")
+    parser = notation3.SinkParser(store, rules_formula, thisDoc=base_uri)
+    try:
+        parser.startDoc()
+        parser.feed(rules_text.encode("utf-8"))
+        parser.endDoc()
+        rules_closed = rules_formula.close()
+    except BadSyntax as e:
+        line, column = _position(e)
+        return {"ok": False, "errors": [{
+            "doc": "rules", "line": line, "column": column, "message": e._why,
+        }]}
+    except Exception as e:
+        return {"ok": False, "errors": [{
+            "doc": "rules", "line": 0, "column": 0,
+            "message": "erreur interne : %s: %s" % (type(e).__name__, e),
+        }]}
+
+    open_kb = store.newFormula(base_uri + "#_closure")
+    store.copyFormula(kb_closed, open_kb)
+    if store_rules:
+        store.copyFormula(rules_closed, open_kb)
+    if op == "infer":
+        before = _triple_keys(open_kb)
+    if mode == "think":
+        count = think(open_kb, rules_closed)
+    else:
+        count = applyRules(open_kb, rules_closed)
+    closed = open_kb.close()
+    after = _triple_keys(closed)
+
+    if op == "infer":
+        new_facts = after - before
+        # Les énoncés-règles (prédicat log:implies) ne sont pas des
+        # « faits » : exclus du diff (cas des règles stockées).
+        new_facts = {t for t in new_facts if t[1] != IMPLIES_URI}
+        inconsistent = any(LOG_FALSE_URI in t for t in after)
+        labels = _label_index(kb_closed, lang)
+        facts = sorted(_translate(list(t), labels) for t in new_facts)
+        return {"ok": True, "count": count,
+                "new_facts": [list(t) for t in facts],
+                "inconsistent": inconsistent,
+                "closure_statements": len(after),
+                "rules_in_closure": sum(1 for t in after
+                                         if t[1] == IMPLIES_URI)}
+
+    if op == "prove":
+        from swap.reasoner.why import (BecauseOfCommandLine, explainFormula,
+                                       newTopLevelFormula)
+        # Garde du suivi ``diag.tracking`` (état global du raisonneur) —
+        # ici, dans le worker : même mécanisme que l'ancien thread de
+        # :func:`prove`, mais l'état vit dans le subprocess (au timeout,
+        # le kill le nettoie d'office).
+        token = object()
+        _tracking_begin(token)
+        try:
+            pstore = llyn.RDFStore()
+            wc = pstore.newFormula(base_uri + "#_work")
+            newTopLevelFormula(wc)
+            wc.stayOpen = 1
+            wc.isWorkingContext = True
+            cmd = BecauseOfCommandLine(
+                "lab-tp (CWM 2.0) — %s : données + règles"
+                % ("convergence" if mode == "think" else "1 passe"))
+            p = notation3.SinkParser(pstore, wc,
+                                     thisDoc=_data_uri(kb_text), why=cmd)
+            p.startDoc()
+            p.feed(kb_text.encode("utf-8"))
+            p.endDoc()
+            if rules_text.strip():
+                p = notation3.SinkParser(pstore, wc,
+                                         thisDoc=_data_uri(rules_text),
+                                         why=cmd)
+                p.startDoc()
+                p.feed(rules_text.encode("utf-8"))
+                p.endDoc()
+            if mode == "think":
+                think(wc)
+            else:
+                applyRules(wc)
+            wc.stayOpen = False
+            wc = wc.close()
+            proof = explainFormula(wc)
+            buf = io.StringIO()
+            pstore.dumpNested(proof, notation3.ToN3(buf.write, base=base_uri,
+                                                     quiet=1, flags="qdr"))
+            return {"ok": True, "count": count, "proof": buf.getvalue(),
+                    "closure_statements": len(_triple_keys(wc))}
+        finally:
+            _tracking_end(token)
+
+    # op == "closure" : sérialisation N3 (URIs absolues, pas
+    # d'espace de noms par défaut — la clôture se re-parse dans
+    # n'importe quel contexte, y compris un autre processus).
+    buf = io.StringIO()
+    store.dumpNested(closed, notation3.ToN3(buf.write, base=base_uri,
+                                             quiet=1, flags="qr"))
+    return {"ok": True, "count": count, "closure_n3": buf.getvalue(),
+            "closure_statements": len(after),
+            "rules_in_closure": sum(1 for t in after
+                                     if t[1] == IMPLIES_URI)}
+
+
+def _parse_closure_n3(closure_n3, base_uri, store):
+    """P6 — re-parse le N3 de la clôture (sérialisé par le worker
+    subprocess) dans le **store de l'appelant** — l'appelant l'utilise
+    comme la clôture in-process d'avant P6.
+
+    Le store fait foi : les symboles CWM (notamment les datatypes des
+    littéraux) sont liés à l'instance de store qui les a créés — deux
+    ``RDFStore`` distincts ne partagent PAS leurs symboles, et un
+    ``testIncludes`` (entraînement) entre formules de stores distincts
+    échouerait sur des littéraux qui se comparent pourtant égaux à
+    l'œil. Parser la clôture dans le store de l'appelant garantit que
+    tous les symboles partagés y sont trouvés."""
+    formula = store.newFormula(base_uri + "#_closure")
+    parser = notation3.SinkParser(store, formula, thisDoc=base_uri)
+    parser.startDoc()
+    parser.feed(closure_n3.encode("utf-8"))
+    parser.endDoc()
+    return formula.close()
+
+
 def infer(kb_text, rules_text, base_uri=DEFAULT_BASE_URI, mode="think",
           store_rules=False, timeout=10.0, lang="fr"):
     """Raisonnement par chaînage avant sur une base de données + règles.
@@ -412,9 +722,11 @@ def infer(kb_text, rules_text, base_uri=DEFAULT_BASE_URI, mode="think",
 
     Les règles sont appliquées à une *copie ouverte* de la KB (la KB
     close d'origine sert de référence pour le diff). La clôture se fait
-    dans un thread **démon** : si ``timeout`` secondes s'écoulent sans
-    convergence, la réponse revient quand même (le thread orphelin est
-    abandonné) — une règle récursive ne bloque jamais le TP.
+    dans un **subprocess tuable** (P6 — risque #8 ROADMAP) : si
+    ``timeout`` secondes s'écoulent sans convergence, la réponse
+    revient quand même et le processus est **tué** (plus rien ne
+    tourne en fond — avant P6 un thread orphelin était abandonné) —
+    une règle récursive ne bloque jamais le TP.
 
     Paramètres :
 
@@ -460,103 +772,44 @@ def infer(kb_text, rules_text, base_uri=DEFAULT_BASE_URI, mode="think",
     if timeout < 0:
         timeout = 0.0
 
-    # import différé : le module swap.query.query est lourd et n'est
-    # utile qu'ici (parse/serialize n'en ont pas besoin)
-    from swap.query.query import applyRules, think
-
-    # Les deux documents doivent vivre dans le même store (les règles
-    # référencent les symboles du store).
-    setVerbosity(0)
-    store = llyn.RDFStore()
-    formula = store.newFormula(base_uri + "#_work")
-    parser = notation3.SinkParser(store, formula, thisDoc=base_uri)
-    try:
-        parser.startDoc()
-        parser.feed(kb_text.encode("utf-8"))
-        parser.endDoc()
-        kb_closed = formula.close()
-    except BadSyntax as e:
-        line, column = _position(e)
-        return _infer_result(errors=[{
-            "doc": "kb", "line": line, "column": column, "message": e._why,
-        }])
-    except Exception as e:  # toute entrée d'étudiant doit rester gérable
-        return _infer_result(errors=[{
-            "doc": "kb", "line": 0, "column": 0,
-            "message": "erreur interne : %s: %s" % (type(e).__name__, e),
-        }])
-
-    rules_formula = store.newFormula(base_uri + "#_rules")
-    parser = notation3.SinkParser(store, rules_formula, thisDoc=base_uri)
-    try:
-        parser.startDoc()
-        parser.feed(rules_text.encode("utf-8"))
-        parser.endDoc()
-        rules_closed = rules_formula.close()
-    except BadSyntax as e:
-        line, column = _position(e)
-        return _infer_result(errors=[{
-            "doc": "rules", "line": line, "column": column, "message": e._why,
-        }])
-    except Exception as e:
-        return _infer_result(errors=[{
+    # P6 : la clôture tourne dans un subprocess **tuable** (risque
+    # #8 ROADMAP) — le thread démon d'avant P6 continuait de
+    # consommer CPU/mémoire après le timeout (vecteur de DoS en
+    # serveur partagé). Le diff des nouveaux faits et les libellés
+    # sont calculés dans le subprocess (même store : l'identité des
+    # nœuds vides est préservée).
+    res = _run_closure("infer", kb_text, rules_text, base_uri, mode,
+                       store_rules, lang, timeout)
+    if res.get("busy"):
+        r = _infer_result(errors=[_busy_error()])
+        r["busy"] = True
+        return r
+    if res.get("timeout"):
+        return _infer_result(
+            timeout=True,
+            errors=[{
+                "doc": "rules", "line": 0, "column": 0,
+                "message": "timeout après %g s : la clôture ne converge "
+                           "pas (règle récursive produisant sans fin ?)"
+                           % timeout,
+            }],
+            elapsed_ms=res["elapsed_ms"],
+        )
+    if not res.get("ok", False):
+        # Erreurs de syntaxe (taguées ``kb``/``rules``, ligne/colonne)
+        # venues du worker, ou échec du subprocess.
+        errors = res.get("errors") or [{
             "doc": "rules", "line": 0, "column": 0,
-            "message": "erreur interne : %s: %s" % (type(e).__name__, e),
-        }])
-
-    # Copie ouverte de la KB : les conclusions s'y ajoutent (think exige
-    # une formule ouverte) ; la KB close d'origine sert de référence.
-    open_kb = store.newFormula(base_uri + "#_closure")
-    store.copyFormula(kb_closed, open_kb)
-    if store_rules:
-        store.copyFormula(rules_closed, open_kb)
-    before = _triple_keys(open_kb)
-
-    outcome = {}
-
-    def _run():
-        if mode == "think":
-            outcome["count"] = think(open_kb, rules_closed)
-        else:
-            outcome["count"] = applyRules(open_kb, rules_closed)
-
-    start = time.monotonic()
-    if timeout > 0:
-        worker = threading.Thread(target=_run, daemon=True)
-        worker.start()
-        worker.join(timeout)
-        if worker.is_alive():
-            elapsed_ms = int((time.monotonic() - start) * 1000)
-            return _infer_result(
-                timeout=True,
-                errors=[{
-                    "doc": "rules", "line": 0, "column": 0,
-                    "message": "timeout après %g s : la clôture ne converge "
-                               "pas (règle récursive produisant sans fin ?)"
-                               % timeout,
-                }],
-                elapsed_ms=elapsed_ms,
-            )
-    else:
-        _run()
-    elapsed_ms = int((time.monotonic() - start) * 1000)
-
-    after = _triple_keys(open_kb)
-    new_facts = after - before
-    # Les énoncés-règles (prédicat log:implies) ne sont pas des « faits » :
-    # on les exclut du diff (cas des règles stockées ou générées).
-    new_facts = {t for t in new_facts if t[1] != IMPLIES_URI}
-    inconsistent = any(LOG_FALSE_URI in t for t in after)
-    rules_in_closure = sum(1 for t in after if t[1] == IMPLIES_URI)
-    # Libellés d'affichage (i18n) : IRI → rdfs:label choisi dans la
-    # langue de l'application (le diff a été calculé sur les IRI bruts).
-    labels = _label_index(kb_closed, lang)
+            "message": res.get("error", "erreur interne inconnue"),
+        }]
+        return _infer_result(errors=errors,
+                             elapsed_ms=res.get("elapsed_ms", 0))
     return _infer_result(
-        new_facts=[_translate(list(t), labels) for t in new_facts],
-        inconsistent=inconsistent,
-        closure_statements=len(after),
-        rules_in_closure=rules_in_closure,
-        elapsed_ms=elapsed_ms)
+        new_facts=[tuple(t) for t in res.get("new_facts", [])],
+        inconsistent=res.get("inconsistent", False),
+        closure_statements=res.get("closure_statements", 0),
+        rules_in_closure=res.get("rules_in_closure", 0),
+        elapsed_ms=res["elapsed_ms"])
 
 
 # ----------------------------------------------------------------------
@@ -835,8 +1088,6 @@ def query(kb_text, query_text, rules_text="", base_uri=DEFAULT_BASE_URI,
     if timeout < 0:
         timeout = 0.0
 
-    from swap.query.query import applyRules, think
-
     setVerbosity(0)
     store = llyn.RDFStore()
 
@@ -933,39 +1184,44 @@ def query(kb_text, query_text, rules_text="", base_uri=DEFAULT_BASE_URI,
                              }],
                              elapsed_ms=int((time.monotonic() - start) * 1000))
 
-    # --- clôture (thread démont + timeout, comme infer) ------------------
-    open_kb = store.newFormula(base_uri + "#_closure")
-    store.copyFormula(kb_closed, open_kb)
-    if store_rules:
-        store.copyFormula(rules_closed, open_kb)
-
-    def _run():
-        if mode == "think":
-            think(open_kb, rules_closed)
-        else:
-            applyRules(open_kb, rules_closed)
-
-    if timeout > 0:
-        worker = threading.Thread(target=_run, daemon=True)
-        worker.start()
-        worker.join(timeout)
-        if worker.is_alive():
-            return _query_result(
-                timeout=True,
-                query_type=qtype, variables=variables,
-                rows_raw=rows_raw, ask_raw=ask_raw,
-                errors=[{
-                    "doc": "rules", "line": 0, "column": 0,
-                    "message": "timeout après %g s : la clôture ne converge "
-                               "pas (règle récursive produisant sans fin ?)"
-                               % timeout,
-                }],
-                elapsed_ms=int((time.monotonic() - start) * 1000),
-            )
+    # --- clôture (P6 : subprocess tuable, comme infer) -------------------
+    res = _run_closure("closure", kb_text, rules_text, base_uri, mode,
+                       store_rules, lang, timeout)
+    if res.get("busy"):
+        r = _query_result(query_type=qtype, variables=variables,
+                          rows_raw=rows_raw, ask_raw=ask_raw,
+                          errors=[_busy_error()], elapsed_ms=0)
+        r["busy"] = True
+        return r
+    if res.get("timeout"):
+        return _query_result(
+            timeout=True,
+            query_type=qtype, variables=variables,
+            rows_raw=rows_raw, ask_raw=ask_raw,
+            errors=[{
+                "doc": "rules", "line": 0, "column": 0,
+                "message": "timeout après %g s : la clôture ne converge "
+                           "pas (règle récursive produisant sans fin ?)"
+                           % timeout,
+            }],
+            elapsed_ms=res["elapsed_ms"],
+        )
+    if not res.get("ok", False):
+        errors = res.get("errors") or [{
+            "doc": "rules", "line": 0, "column": 0,
+            "message": res.get("error", "erreur interne inconnue"),
+        }]
+        return _query_result(query_type=qtype, variables=variables,
+                             rows_raw=rows_raw, ask_raw=ask_raw,
+                             errors=errors,
+                             elapsed_ms=res.get("elapsed_ms", 0))
 
     # --- requête sur la clôture ------------------------------------------
+    # La clôture arrive du worker subprocess sous forme de N3 :
+    # re-parse dans le store de l'appelant (les symboles — datatypes
+    # compris — y sont partagés avec la KB brute et la requête).
     try:
-        closure_closed = open_kb.close()
+        closure_closed = _parse_closure_n3(res["closure_n3"], base_uri, store)
         qvars2, rows_reasoned_dicts, ask_reasoned = _run_sparql(
             store, closure_closed, qf, query_text)
     except Exception as e:
@@ -1201,64 +1457,54 @@ def entail(kb_text, rules_text, conclusion_text, base_uri=DEFAULT_BASE_URI,
             "message": "erreur interne : %s: %s" % (type(e).__name__, e),
         }])
 
-    # --- clôture + testIncludes (thread démont + timeout, comme infer) ----
-    open_kb = store.newFormula(base_uri + "#_closure")
-    store.copyFormula(kb_closed, open_kb)
+    # --- clôture (P6 : subprocess tuable) + testIncludes ----------------
+    res = _run_closure("closure", kb_text, rules_text, base_uri, mode,
+                       False, "fr", timeout)
+    if res.get("busy"):
+        r = _entail_result(errors=[_busy_error()], elapsed_ms=0)
+        r["busy"] = True
+        return r
+    if res.get("timeout"):
+        return _entail_result(
+            timeout=True,
+            errors=[{
+                "doc": "rules", "line": 0, "column": 0,
+                "message": "timeout après %g s : la clôture ne converge "
+                           "pas (règle récursive produisant sans fin ?)"
+                           % timeout,
+            }],
+            elapsed_ms=res["elapsed_ms"],
+        )
+    if not res.get("ok", False):
+        errors = res.get("errors") or [{
+            "doc": "rules", "line": 0, "column": 0,
+            "message": res.get("error", "erreur interne inconnue"),
+        }]
+        return _entail_result(errors=errors,
+                              elapsed_ms=res.get("elapsed_ms", 0))
 
-    outcome = {}
-
-    def _run():
-        try:
-            if mode == "think":
-                think(open_kb, rules_closed)
-            else:
-                applyRules(open_kb, rules_closed)
-            closure_closed = open_kb.close()
-            keys = _triple_keys(closure_closed)
-            inconsistent = any(LOG_FALSE_URI in t for t in keys)
-            # ``testIncludes`` est une simple inclusion : le moteur CWM
-            # n'implémente pas l'explosion. Sémantique classique : une
-            # clôture incohérente (``log:false``) entraîne TOUTE
-            # conclusion (*ex falso quodlibet*) — l'applique ici, avec
-            # ``inconsistent: true`` pour que l'interface signale que
-            # le oui est vide.
-            entails = bool(testIncludes(closure_closed, concl_closed))
-            if inconsistent:
-                entails = True
-            outcome["entails"] = entails
-            outcome["statements"] = len(keys)
-            outcome["inconsistent"] = inconsistent
-        except Exception as e:
-            outcome["error"] = "erreur interne : %s: %s" % (type(e).__name__, e)
-
-    start = time.monotonic()
-    if timeout > 0:
-        worker = threading.Thread(target=_run, daemon=True)
-        worker.start()
-        worker.join(timeout)
-        if worker.is_alive():
-            return _entail_result(
-                timeout=True,
-                errors=[{
-                    "doc": "rules", "line": 0, "column": 0,
-                    "message": "timeout après %g s : la clôture ne converge "
-                               "pas (règle récursive produisant sans fin ?)"
-                               % timeout,
-                }],
-                elapsed_ms=int((time.monotonic() - start) * 1000),
-            )
-    else:
-        _run()
-    elapsed_ms = int((time.monotonic() - start) * 1000)
-    if "entails" not in outcome:
+    try:
+        closure_closed = _parse_closure_n3(res["closure_n3"], base_uri,
+                                            store)
+        keys = _triple_keys(closure_closed)
+        inconsistent = any(LOG_FALSE_URI in t for t in keys)
+        # ``testIncludes`` est une simple inclusion : le moteur CWM
+        # n'implémente pas l'explosion. Sémantique classique : une
+        # clôture incohérente (``log:false``) entraîne TOUTE
+        # conclusion (*ex falso quodlibet*) — l'applique ici, avec
+        # ``inconsistent: true`` pour que l'interface signale que
+        # le oui est vide.
+        entails = bool(testIncludes(closure_closed, concl_closed))
+        if inconsistent:
+            entails = True
+    except Exception as e:
         return _entail_result(errors=[{
             "doc": "rules", "line": 0, "column": 0,
-            "message": outcome.get("error", "erreur interne inconnue"),
-        }], elapsed_ms=elapsed_ms)
-    return _entail_result(entails=outcome["entails"],
-                          inconsistent=outcome["inconsistent"],
-                          closure_statements=outcome["statements"],
-                          elapsed_ms=elapsed_ms)
+            "message": "erreur interne : %s: %s" % (type(e).__name__, e),
+        }], elapsed_ms=res["elapsed_ms"])
+    return _entail_result(entails=entails, inconsistent=inconsistent,
+                          closure_statements=len(keys),
+                          elapsed_ms=res["elapsed_ms"])
 
 
 def _prove_result(errors=None, timeout=False, proof=None,
@@ -1325,10 +1571,6 @@ def prove(kb_text, rules_text, base_uri=DEFAULT_BASE_URI,
     if timeout < 0:
         timeout = 0.0
 
-    from swap.reasoner.why import (BecauseOfCommandLine, explainFormula,
-                                   newTopLevelFormula)
-    from swap.query.query import applyRules, think
-
     # Syntaxe vérifiée d'abord (sans suivi) : les erreurs de parse
     # remontent propres (ligne/colonne), avant toute génération.
     setVerbosity(0)
@@ -1368,82 +1610,37 @@ def prove(kb_text, rules_text, base_uri=DEFAULT_BASE_URI,
             "message": "erreur interne : %s: %s" % (type(e).__name__, e),
         }])
 
-    outcome = {}
-    token = object()
-
-    def _gen():
-        _tracking_begin(token)
-        try:
-            pstore = llyn.RDFStore()
-            wc = pstore.newFormula(base_uri + "#_work")
-            newTopLevelFormula(wc)
-            wc.stayOpen = 1
-            wc.isWorkingContext = True
-            cmd = BecauseOfCommandLine(
-                "lab-tp (CWM 2.0) — %s : données + règles"
-                % ("convergence" if mode == "think" else "1 passe"))
-            p = notation3.SinkParser(pstore, wc, thisDoc=_data_uri(kb_text),
-                                     why=cmd)
-            p.startDoc()
-            p.feed(kb_text.encode("utf-8"))
-            p.endDoc()
-            if rules_text.strip():
-                p = notation3.SinkParser(pstore, wc,
-                                         thisDoc=_data_uri(rules_text),
-                                         why=cmd)
-                p.startDoc()
-                p.feed(rules_text.encode("utf-8"))
-                p.endDoc()
-            if mode == "think":
-                think(wc)
-            else:
-                applyRules(wc)
-            wc.stayOpen = False
-            wc = wc.close()
-            proof = explainFormula(wc)
-            buf = io.StringIO()
-            pstore.dumpNested(proof, notation3.ToN3(buf.write, base=base_uri,
-                                                    quiet=1, flags="qdr"))
-            outcome["proof"] = buf.getvalue()
-            outcome["statements"] = len(_triple_keys(wc))
-        except Exception as e:
-            outcome["error"] = "erreur interne : %s: %s" % (type(e).__name__, e)
-        finally:
-            _tracking_end(token)
-
-    start = time.monotonic()
-    if timeout > 0:
-        worker = threading.Thread(target=_gen, daemon=True)
-        worker.start()
-        worker.join(timeout)
-        if worker.is_alive():
-            # Le thread abandonné reste bloqué dans sa think() —
-            # marquer la génération comme abandonnée et réinitialiser
-            # le suivi, sans quoi tout parse ultérieur sans ``why=``
-            # échouerait (voir le garde ``_tracking_guard`` en tête
-            # de section).
-            _tracking_abort(token)
-            return _prove_result(
-                timeout=True,
-                errors=[{
-                    "doc": "rules", "line": 0, "column": 0,
-                    "message": "timeout après %g s : la clôture ne converge "
-                               "pas (règle récursive produisant sans fin ?)"
-                               % timeout,
-                }],
-                elapsed_ms=int((time.monotonic() - start) * 1000),
-            )
-    else:
-        _gen()
-    elapsed_ms = int((time.monotonic() - start) * 1000)
-    if "proof" not in outcome:
-        return _prove_result(errors=[{
+    # P6 : la génération entière (suivi + think + ``explainFormula``)
+    # tourne dans le subprocess worker (``op="prove"``) — le garde du
+    # suivi ``diag.tracking`` y est inclus : au timeout, le processus
+    # est tué et plus rien à réinitialiser côté serveur.
+    res = _run_closure("prove", kb_text, rules_text, base_uri, mode,
+                       False, "fr", timeout)
+    if res.get("busy"):
+        r = _prove_result(errors=[_busy_error()], elapsed_ms=0)
+        r["busy"] = True
+        return r
+    if res.get("timeout"):
+        return _prove_result(
+            timeout=True,
+            errors=[{
+                "doc": "rules", "line": 0, "column": 0,
+                "message": "timeout après %g s : la clôture ne converge "
+                           "pas (règle récursive produisant sans fin ?)"
+                           % timeout,
+            }],
+            elapsed_ms=res["elapsed_ms"],
+        )
+    if not res.get("ok", False):
+        errors = res.get("errors") or [{
             "doc": "rules", "line": 0, "column": 0,
-            "message": outcome.get("error", "erreur interne inconnue"),
-        }], elapsed_ms=elapsed_ms)
-    return _prove_result(proof=outcome["proof"],
-                         closure_statements=outcome["statements"],
-                         elapsed_ms=elapsed_ms)
+            "message": res.get("error", "erreur interne inconnue"),
+        }]
+        return _prove_result(errors=errors,
+                             elapsed_ms=res.get("elapsed_ms", 0))
+    return _prove_result(proof=res.get("proof"),
+                         closure_statements=res.get("closure_statements", 0),
+                         elapsed_ms=res["elapsed_ms"])
 
 
 #: Code de sortie de ``check`` quand la preuve est **invalide**
@@ -2149,8 +2346,6 @@ def graph(kb_text, rules_text, base_uri=DEFAULT_BASE_URI, reason=False,
     raw_pairs = {(_term_str(s), _term_str(o)) for s, _, o in raw_stmts}
     after_stmts = raw_stmts
     if reason:
-        from swap.query.query import applyRules, think
-
         rules_formula = store.newFormula(base_uri + "#_rules")
         parser = notation3.SinkParser(store, rules_formula,
                                        thisDoc=base_uri)
@@ -2174,35 +2369,40 @@ def graph(kb_text, rules_text, base_uri=DEFAULT_BASE_URI, reason=False,
                     "nodes": [], "edges": [], "attrs": {}, "statement_count": 0,
                     "truncated": False, "elapsed_ms": 0}
 
-        open_kb = store.newFormula(base_uri + "#_closure")
-        store.copyFormula(kb_closed, open_kb)
+        # P6 : clôture en subprocess tuable (comme infer) ; le graphe
+        # est construit sur la clôture re-parsée.
         start = time.monotonic()
-        if timeout > 0:
-            def _run():
-                if mode == "think":
-                    think(open_kb, rules_closed)
-                else:
-                    applyRules(open_kb, rules_closed)
-
-            worker = threading.Thread(target=_run, daemon=True)
-            worker.start()
-            worker.join(timeout)
-            if worker.is_alive():
-                return {"ok": False, "timeout": True,
-                        "errors": [{"doc": "rules", "line": 0,
-                                    "column": 0,
-                                    "message": "timeout après %g s : la "
-                                               "clôture ne converge pas"
-                                               % timeout}],
-                        "nodes": [], "edges": [], "attrs": {}, "statement_count": 0,
-                        "truncated": False,
-                        "elapsed_ms": int((time.monotonic() - start) * 1000)}
-        else:
-            if mode == "think":
-                think(open_kb, rules_closed)
-            else:
-                applyRules(open_kb, rules_closed)
-        after_stmts = _graph_statements(open_kb)
+        res = _run_closure("closure", kb_text, rules_text, base_uri, mode,
+                           False, lang, timeout)
+        if res.get("busy"):
+            r = {"ok": False,
+                 "errors": [_busy_error()],
+                 "nodes": [], "edges": [], "attrs": {}, "statement_count": 0,
+                 "truncated": False, "elapsed_ms": 0}
+            r["busy"] = True
+            return r
+        if res.get("timeout"):
+            return {"ok": False, "timeout": True,
+                    "errors": [{"doc": "rules", "line": 0,
+                                "column": 0,
+                                "message": "timeout après %g s : la "
+                                           "clôture ne converge pas"
+                                           % timeout}],
+                    "nodes": [], "edges": [], "attrs": {}, "statement_count": 0,
+                    "truncated": False,
+                    "elapsed_ms": res["elapsed_ms"]}
+        if not res.get("ok", False):
+            errors = res.get("errors") or [{
+                "doc": "rules", "line": 0, "column": 0,
+                "message": res.get("error", "erreur interne inconnue"),
+            }]
+            return {"ok": False, "errors": errors,
+                    "nodes": [], "edges": [], "attrs": {}, "statement_count": 0,
+                    "truncated": False,
+                    "elapsed_ms": res.get("elapsed_ms", 0)}
+        closure_closed = _parse_closure_n3(res["closure_n3"], base_uri,
+                                            store)
+        after_stmts = _graph_statements(closure_closed)
     else:
         start = time.monotonic()
 

@@ -296,7 +296,7 @@ cwm-lab --port 8080
 
 `pip install cwm-lab` résout automatiquement `cwm>=2.9.3` (CWM 2.0,
 fork, sur PyPI) ; en développement : `pip install -e .` depuis ce
-dépôt. `make test` exécute les tests unitaires (153) ; `make serve`
+dépôt. `make test` exécute les tests unitaires (196) ; `make serve`
 démarre le serveur.
 
 ## Configuration (P8/P9, facultative)
@@ -320,17 +320,34 @@ fonctionne). Deux fichiers optionnels, dans `cwm_lab/` :
   versionnée). Installer :
   `cp cwm_lab/.env.example cwm_lab/.env && chmod 600 cwm_lab/.env`.
 
+## Déploiement (P6)
+
+Trois niveaux, documentés dans [`DEPLOY.md`](DEPLOY.md)
+([EN](DEPLOY.en.md)) : **salle de TP / LAN** (zéro dépendance —
+`cwm-lab --host 0.0.0.0`), **serveur de département** (gunicorn +
+systemd + Caddy) et **Internet** (+ authentification). Depuis la P6,
+le raisonnement tourne dans un **subprocess tuable** (une règle
+cyclique de mauvaise foi est tuée au timeout) et un **plafond de
+concurrence** (`max_reason_concurrent`, défaut 8) répond
+**503 « serveur occupé »** au-delà : 30 étudiants simultanés sans
+blocage.
+
 ## Arborescence
 
 ```
 cwm-lab/
 ├── README.md            # ce fichier
 ├── ROADMAP.md           # feuille de route (phases, critères, risques)
+├── DEPLOY.md            # P6 : déploiement (3 niveaux) — voir aussi
+│                        #   DEPLOY.en.md + requirements-deploy.txt
 ├── pyproject.toml       # paquet cwm-lab (dépendance : cwm>=2.9.3)
 ├── Makefile             # test / serve
 ├── cwm_lab/
 │   ├── __init__.py      # version
-│   ├── server.py        # http.server + endpoints /api/*
+│   ├── server.py        # http.server + endpoints /api/* (+ P6 :
+│   │                    #   application WSGI app pour gunicorn)
+│   ├── _reason_worker.py  # P6 : worker de raisonnement (subprocess
+│   │                      #   tuable, exécuté par engine._run_closure)
 │   ├── engine.py        # wrapper stateless sur les API swap (cœur testable)
 │   ├── cache.py         # P8 : cache deux niveaux (mémoire + disque) + config
 │   ├── ia.py            # P9 : remplissage de la base par IA (proxy, contrôles)

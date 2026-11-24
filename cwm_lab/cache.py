@@ -68,6 +68,11 @@ DEFAULTS = {
     "ttl_disk": 7 * 86400.0,    # 7 jours
     "max_disk_bytes": 200 * 1024 * 1024,  # 200 Mo
     "memory_entries": 64,
+    # P6 — plafond de raisonnements simultanés (0 = sans plafond).
+    # Le serveur l'applique via ``engine.set_reason_limit`` : au-delà,
+    # une requête de raisonnement ne s'attarde pas — elle reçoit
+    # immédiatement 503 « serveur occupé » (risque #8 ROADMAP).
+    "max_reason_concurrent": 8,
     # P9 — IA générative (voir ia.py)
     "ia_provider": "",              # ex. "proxyiag" (URL par défaut)
     "ia_url": "https://pedago.desmontils.net/proxyiag/v1",
@@ -167,6 +172,9 @@ def load_config(base_dir=None):
             cfg["max_disk_bytes"] = int(float(flat["max_disk_mb"])) * 1024 * 1024
         if "memory_entries" in flat:
             cfg["memory_entries"] = int(flat["memory_entries"])
+        # P6 — plafond de raisonnements simultanés (0 = sans plafond)
+        if "max_reason_concurrent" in flat:
+            cfg["max_reason_concurrent"] = max(0, int(flat["max_reason_concurrent"]))
         # P9 — plafonds de quota de séance de l'IA
         if "ia_max_requests" in flat:
             cfg["ia_max_requests"] = max(1, int(flat["ia_max_requests"]))

@@ -17,6 +17,13 @@
 # Nombre d'entrées du cache mémoire (défaut 64)
 #memory_entries: 64
 
+# P6 — plafond de raisonnements simultanés (défaut 8). Au-delà, une
+# requête de raisonnement ne s'attarde pas : elle reçoit immédiatement
+# 503 « serveur occupé » (les raisonnements tournent dans des
+# subprocess tuables — une règle cyclique de mauvaise foi ne bloque
+# ni ne sature le serveur). 0 = sans plafond (usage local).
+#max_reason_concurrent: 8
+
 # P9 — IA générative : quotas de séance (comptés côté backend,
 # persistés avec le cache, réinitialisés chaque jour). Le quota de
 # ProxyIAg est celui d'une clé unique, commune à tous les étudiants

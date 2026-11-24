@@ -157,6 +157,7 @@ const MESSAGES = {
     "doc.query": "requête",
     "doc.conclusion": "conclusion",
     "doc.proof": "preuve",
+    "doc.server": "serveur",
     // ── statut (barre) ───────────────────────────────────────────────
     "status.parsing": "parse en cours…",
     "status.syntaxError": "erreur de syntaxe",
@@ -400,6 +401,7 @@ const MESSAGES = {
     "doc.query": "query",
     "doc.conclusion": "conclusion",
     "doc.proof": "proof",
+    "doc.server": "server",
     // ── status bar ───────────────────────────────────────────────────
     "status.parsing": "parsing…",
     "status.syntaxError": "syntax error",

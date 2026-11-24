@@ -284,7 +284,7 @@ cwm-lab --port 8080
 
 `pip install cwm-lab` automatically resolves `cwm>=2.9.3` (CWM 2.0,
 fork, on PyPI); for development: `pip install -e .` from this
-repository. `make test` runs the unit tests (153); `make serve`
+repository. `make test` runs the unit tests (196); `make serve`
 starts the server.
 
 ## Configuration (P8/P9, optional)
@@ -306,6 +306,17 @@ in `cwm_lab/`:
   (`sk-…` key, revocable — **never** in a versioned config).
   Install: `cp cwm_lab/.env.example cwm_lab/.env && chmod 600 cwm_lab/.env`.
 
+## Deployment (P6)
+
+Three levels, documented in [`DEPLOY.en.md`](DEPLOY.en.md)
+([FR](DEPLOY.md)): **lab room / LAN** (zero dependencies —
+`cwm-lab --host 0.0.0.0`), **department server** (gunicorn +
+systemd + Caddy), and **Internet** (+ authentication). Since P6,
+reasoning runs in a **killable subprocess** (a bad-faith cyclic rule
+is killed at timeout) and a **concurrency ceiling**
+(`max_reason_concurrent`, default 8) answers **503 “server busy”**
+beyond it: 30 simultaneous students without blocking.
+
 ## Tree
 
 ```
@@ -313,11 +324,16 @@ cwm-lab/
 ├── README.md            # this file (French)
 ├── README.en.md         # this file (English)
 ├── ROADMAP.md           # roadmap + delivery log (phases, criteria, risks)
+├── DEPLOY.md            # P6: deployment (3 levels) — see also
+│                        #   DEPLOY.en.md + requirements-deploy.txt
 ├── pyproject.toml       # cwm-lab package (dependency: cwm>=2.9.3)
 ├── Makefile             # test / serve
 ├── cwm_lab/
 │   ├── __init__.py      # version
-│   ├── server.py        # http.server + /api/* endpoints
+│   ├── server.py        # http.server + /api/* endpoints (+ P6: WSGI
+│   │                    #   app for gunicorn)
+│   ├── _reason_worker.py  # P6: reasoning worker (killable subprocess,
+│   │                      #   run by engine._run_closure)
 │   ├── engine.py        # stateless wrapper over the swap APIs (testable core)
 │   ├── cache.py         # P8: two-level cache (memory + disk) + config
 │   ├── ia.py            # P9: AI KB filling (proxy, controls)

@@ -5,6 +5,18 @@ Lancement :
     python3 -m cwm_lab.server               # http://127.0.0.1:8000
     python3 -m cwm_lab.server --port 8080
 
+Déploiement (P6 — voir ``DEPLOY.md``) : le même code tourne sous
+**gunicorn** (dépendance de déploiement uniquement, jamais importée
+par le code du TP) via l'application WSGI :data:`app` :
+
+    gunicorn cwm_lab.server:app --bind 0.0.0.0:8000
+
+Les 5 endpoints de raisonnement (``infer`` / ``query`` / ``entail`` /
+``prove`` / ``graph``) répondent **503** « serveur occupé » quand le
+plafond de concurrence est atteint (``max_reason_concurrent`` de
+``config.yaml``, défaut 8 — le raisonnement tourne alors dans un
+subprocess tuable, voir :mod:`cwm_lab.engine`).
+
 Endpoints (P0) :
 
 - ``GET  /``            : le tableau de bord (``static/index.html``) ;
@@ -89,6 +101,7 @@ n'est nécessaire.
 # limitations under the License.
 
 import argparse
+import io
 import json
 import os
 import sys
@@ -278,7 +291,11 @@ class Handler(BaseHTTPRequestHandler):
                 timeout=req.get("timeout", 10.0),
                 lang=req.get("lang", "fr"),
             ))
-            self._send_json(result)
+            # P6 : plafond de concurrence atteint (semaphore —
+            # engine.set_reason_limit) : 503 « serveur occupé »,
+            # l'étudiant retente immédiatement après.
+            status = 503 if result.get("busy") else 200
+            self._send_json(result, status=status)
             return
         if path == "/api/query":
             try:
@@ -297,7 +314,11 @@ class Handler(BaseHTTPRequestHandler):
                 timeout=req.get("timeout", 10.0),
                 lang=req.get("lang", "fr"),
             ))
-            self._send_json(result)
+            # P6 : plafond de concurrence atteint (semaphore —
+            # engine.set_reason_limit) : 503 « serveur occupé »,
+            # l'étudiant retente immédiatement après.
+            status = 503 if result.get("busy") else 200
+            self._send_json(result, status=status)
             return
         if path == "/api/entail":
             try:
@@ -313,7 +334,11 @@ class Handler(BaseHTTPRequestHandler):
                 mode=req.get("mode", "think"),
                 timeout=req.get("timeout", 10.0),
             ))
-            self._send_json(result)
+            # P6 : plafond de concurrence atteint (semaphore —
+            # engine.set_reason_limit) : 503 « serveur occupé »,
+            # l'étudiant retente immédiatement après.
+            status = 503 if result.get("busy") else 200
+            self._send_json(result, status=status)
             return
         if path == "/api/prove":
             try:
@@ -328,7 +353,11 @@ class Handler(BaseHTTPRequestHandler):
                 mode=req.get("mode", "think"),
                 timeout=req.get("timeout", 10.0),
             ))
-            self._send_json(result)
+            # P6 : plafond de concurrence atteint (semaphore —
+            # engine.set_reason_limit) : 503 « serveur occupé »,
+            # l'étudiant retente immédiatement après.
+            status = 503 if result.get("busy") else 200
+            self._send_json(result, status=status)
             return
         if path == "/api/check":
             try:
@@ -360,7 +389,11 @@ class Handler(BaseHTTPRequestHandler):
                 # du front (défaut/repli « fr »)
                 lang=req.get("lang", "fr"),
             ))
-            self._send_json(result)
+            # P6 : plafond de concurrence atteint (semaphore —
+            # engine.set_reason_limit) : 503 « serveur occupé »,
+            # l'étudiant retente immédiatement après.
+            status = 503 if result.get("busy") else 200
+            self._send_json(result, status=status)
             return
         if path == "/api/ia/generate":
             # P9 : génération par IA — jamais cachée (P8) : non
@@ -405,16 +438,23 @@ class Handler(BaseHTTPRequestHandler):
         sys.stderr.write("[cwm-tp] %s\n" % (fmt % args))
 
 
-def main(argv=None):
-    ap = argparse.ArgumentParser(prog="cwm_lab.server",
-                                 description="CWM Lab (CWM 2.0)")
-    ap.add_argument("--port", type=int, default=8000, help="port (défaut 8000)")
-    ap.add_argument("--host", default="127.0.0.1", help="interface (défaut 127.0.0.1)")
-    args = ap.parse_args(argv)
+#: Drapeau d'initialisation des globals (voir :func:`_init_globals`).
+_INITIALIZED = False
+
+
+def _init_globals():
+    """P6 — initialise les globals partagés (``CONFIG`` / ``CACHE`` /
+    ``CODE_SIG`` + plafond de concurrence des raisonnements), une
+    seule fois — commune au serveur standard (``main``) et à
+    l'adaptateur WSGI (``app``). Idempotent : gunicorn charge le
+    module une fois par worker, mais l'initialisation ne doit jamais
+    se refaire (le semaphore de :mod:`cwm_lab.engine` en dépend)."""
+    global CACHE, CODE_SIG, CONFIG, _INITIALIZED
+    if _INITIALIZED:
+        return
     # Configuration (P8/P9) : config.yaml (TTL, tailles, quotas IA)
     # + .env (répertoire du cache, IA — sensible) ; absents, les
     # valeurs par défaut (l'IA est alors désactivée).
-    global CACHE, CODE_SIG, CONFIG
     CONFIG = cache.load_config()
     # Empreinte du code + des données d'exercices : incluse dans la
     # clé de cache — après un changement de code, les entrées du
@@ -426,6 +466,136 @@ def main(argv=None):
     except Exception as e:  # le cache ne doit jamais bloquer le TP
         CACHE = None
         print("cache indisponible (%s) : mode sans cache" % e)
+    # P6 : plafond de raisonnements simultanés (``config.yaml`` —
+    # défaut 8). Au-delà, une requête de raisonnement ne s'attarde
+    # pas : elle reçoit immédiatement 503 « serveur occupé » (risque
+    # #8 ROADMAP — une règle cyclique de mauvaise foi ne peut ni
+    # bloquer ni saturer le serveur partagé).
+    engine.set_reason_limit(CONFIG.get("max_reason_concurrent", 8))
+    _INITIALIZED = True
+
+
+# ----------------------------------------------------------------------
+# P6 — adaptateur WSGI (gunicorn)
+# ----------------------------------------------------------------------
+# Le serveur standard repose sur ``http.server`` (zéro dépendance —
+# la politique du TP). Pour un déploiement multi-étudiants,
+# **gunicorn** (dépendance de *déploiement* uniquement —
+# ``requirements-deploy.txt``, jamais importée par le code du TP)
+# fait tourner l'application WSGI :data:`app`. L'adaptateur réutilise
+# la même :class:`Handler` (mêmes ``do_GET`` / ``do_POST``, même API
+# JSON) : un sous-classe capture la réponse — statut, en-têtes, corps
+# — en surchargeant ``send_response`` / ``send_header`` /
+# ``end_headers`` ; ``send_error`` de la base classe fonctionne alors
+# tel quel.
+
+class _WSGIHeaders:
+    """Substitut minimal de ``email.message.Message`` : les en-têtes
+    de l'environ WSGI (``HTTP_*``) + ``Content-Length`` /
+    ``Content-Type`` — seuls ceux utilisés par :class:`Handler`."""
+
+    def __init__(self, environ):
+        self._d = {}
+        for key, value in environ.items():
+            if key.startswith("HTTP_"):
+                name = key[5:].replace("_", "-").title()
+                self._d[name] = value
+        if "CONTENT_LENGTH" in environ:
+            self._d["Content-Length"] = environ["CONTENT_LENGTH"]
+        if "CONTENT_TYPE" in environ:
+            self._d["Content-Type"] = environ["CONTENT_TYPE"]
+
+    def get(self, key, default=None):
+        return self._d.get(key, default)
+
+
+class _WSGIWFile:
+    """``wfile`` de la handler WSGI : recueille le corps (les
+    ``write`` de :meth:`Handler._send_json` / ``_send_file`` /
+    ``send_error``)."""
+
+    def __init__(self, chunks):
+        self._chunks = chunks
+
+    def write(self, chunk):
+        if chunk:
+            self._chunks.append(chunk)
+
+
+class _WSGIHandler(Handler):
+    """:class:`Handler` adaptée WSGI — la réponse est capturée
+    (``_status`` / ``_headers`` / ``_chunks``) au lieu d'être écrite
+    sur une socket. ``__init__`` de :mod:`http.server` (socket) n'est
+    **pas** appelé : la requête vient de l'environ WSGI."""
+
+    def __init__(self, path, method, headers, body):
+        self.command = method
+        self.path = path
+        self.headers = headers
+        self.rfile = io.BytesIO(body)
+        self._status = "200 OK"
+        self._headers = []
+        self._chunks = []
+        self.wfile = _WSGIWFile(self._chunks)
+
+    def send_response(self, code, message=None):
+        if message:
+            self._status = "%d %s" % (code, message)
+        else:
+            self._status = "%d %s" % (code,
+                                      BaseHTTPRequestHandler.responses.get(
+                                          code, ("Erreur",))[0])
+
+    def send_header(self, key, value):
+        self._headers.append((key, str(value)))
+
+    def end_headers(self):
+        pass
+
+
+def _wsgi_app(environ, start_response):
+    """Application WSGI (cible ``cwm_lab.server:app`` de gunicorn).
+
+    Convertit l'environ WSGI en :class:`_WSGIHandler` (mêmes méthodes
+    ``do_GET`` / ``do_POST`` que le serveur standard) et renvoie la
+    réponse capturée. Toute exception de l'application remonte à
+    gunicorn (réponse 500 standard) — même comportement qu'un crash
+    de la requête sur le serveur standard.
+    """
+    _init_globals()
+    try:
+        length = int(environ.get("CONTENT_LENGTH") or 0)
+    except ValueError:
+        length = 0
+    body = environ["wsgi.input"].read(length) if length else b""
+    method = environ.get("REQUEST_METHOD", "GET").upper()
+    path = environ.get("PATH_INFO", "/")
+    query = environ.get("QUERY_STRING", "")
+    handler = _WSGIHandler(path + (("?" + query) if query else ""),
+                           method, _WSGIHeaders(environ), body)
+    if method == "GET":
+        handler.do_GET()
+    elif method == "POST":
+        handler.do_POST()
+    else:
+        handler.send_error(501, "Unsupported method (%s)" % method)
+    start_response(handler._status, handler._headers)
+    out = b"".join(handler._chunks)
+    return [out] if out else []
+
+
+#: Application WSGI — cible de gunicorn (déploiement, P6) :
+#: ``gunicorn cwm_lab.server:app --bind 0.0.0.0:8000``
+app = _wsgi_app
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(prog="cwm_lab.server",
+                                 description="CWM Lab (CWM 2.0)")
+    ap.add_argument("--port", type=int, default=8000, help="port (défaut 8000)")
+    ap.add_argument("--host", default="127.0.0.1", help="interface (défaut 127.0.0.1)")
+    args = ap.parse_args(argv)
+    _init_globals()
     server = ThreadingHTTPServer((args.host, args.port), Handler)
     print("CWM Lab — CWM 2.0 (v%s)" % __version__)
     print("Cache : %s"
