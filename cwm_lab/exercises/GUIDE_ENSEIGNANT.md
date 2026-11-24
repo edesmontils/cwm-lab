@@ -1,5 +1,8 @@
 # Guide enseignant — CWM Lab (TP Web sémantique, CWM 2.0)
 
+*Version française — l'anglais est dans
+[`GUIDE_ENSEIGNANT.en.md`](GUIDE_ENSEIGNANT.en.md).*
+
 > Durée : **2 h** — Public : Master MIAGE — Prérequis : aucun
 > (notions de base en Python utiles, non exigées). Matériel : l'outil
 > [cwm-lab](https://github.com/edesmontils/cwm-lab) (CWM 2.0 en

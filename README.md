@@ -1,5 +1,7 @@
 # CWM Lab — outil de TP Web sémantique (CWM 2.0)
 
+*Version française — l'anglais est dans [`README.en.md`](README.en.md).*
+
 > **Application web locale** pour un TP de Web sémantique (Master MIAGE)
 > sur les notions de **cohérence**, **validité** et **règles** —
 > tout ce que sait faire [CWM 2.0](https://gitlab.univ-nantes.fr/desmontils-e/cwm) :
