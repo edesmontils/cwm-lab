@@ -209,6 +209,15 @@ barre d'outils pour la **toute première ligne de l'entête** (à
 droite du titre), toujours visible avant tout autre contrôle.
 Version `0.5.2`.
 
+**Graphe — focus de sélection** (2026-11-24) : un **clic sur un
+nœud masque les nœuds qui ne le concernent pas** — restent le nœud,
+ses voisins directs (arcs dans les deux sens) et les arcs qui le
+relient. Un clic sur le vide (désélection) réaffiche tout ; la
+multi-sélection (Ctrl + clic) prend l'union des voisinages. Fait
+par `hidden` sur les DataSets vis (pas suppression) : positions et
+vue préservées, et le masque survit au changement de langue.
+Version `0.5.2`.
+
 **P7 livrée** (2026-11-23) : **reprise d'ergonomie** — l'interface
 est repensée pour un étudiant qui découvre l'outil :
 

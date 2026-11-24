@@ -1242,6 +1242,14 @@ let graphBusy = false;
 let graphRefreshPending = false;
 let graphAttrs = {};      // P7 : id du nœud → [attributs masqués]
 
+// Poignée de debug (console navigateur / tests automatisés) : le
+// module est en scope fermée, sans quoi le réseau vis serait
+// inatteignable.
+window.__cwmLab = {
+  graph: () => graphNetwork,
+  focus: () => graphFocusSelection(),
+};
+
 // Couleurs par nature de nœud (légende identique dans le HTML) ;
 // « inféré » = orange, commun aux trois natures.
 const GRAPH_COLORS = {
@@ -1288,6 +1296,9 @@ function positionBadges() {
   const tx = w / 2 - vp.x * scale;
   const ty = h / 2 - vp.y * scale;
   for (const [id, items] of Object.entries(graphAttrs)) {
+    // nœud masqué par le focus de sélection : pas de pastille flottante
+    const nd = graphNetwork.body.data.nodes.get(id);
+    if (nd && nd.hidden) continue;
     const pos = graphNetwork.getPosition(id);
     if (!pos) continue;
     const sx = pos.x * scale + tx;
@@ -1353,6 +1364,37 @@ function visEdgeData(e, i) {
   };
 }
 
+// Focus de sélection : un nœud sélectionné masque les nœuds qui ne le
+// concernent pas — restent visibles le nœud, ses voisins directs
+// (arcs dans les deux sens) et les arcs qui le relient. La
+// désélection (clic sur le vide) réaffiche tout. Implémenté par
+// `hidden` (patch du DataSet, pas suppression) : positions et vue de
+// l'utilisateur sont préservées, et la mise à jour des libellés de
+// langue (in place, par id) ne dé masque pas (le merge conserve
+// `hidden`).
+function graphFocusSelection() {
+  if (!graphNetwork) return;
+  const nodesDS = graphNetwork.body.data.nodes;
+  const edgesDS = graphNetwork.body.data.edges;
+  const selected = new Set(graphNetwork.getSelectedNodes());
+  const visibleNodes = new Set(selected);
+  const visibleEdges = new Set();
+  if (selected.size) {
+    edgesDS.get().forEach((e) => {
+      if (selected.has(e.from) || selected.has(e.to)) {
+        visibleNodes.add(e.from);
+        visibleNodes.add(e.to);
+        visibleEdges.add(e.id);
+      }
+    });
+  }
+  const on = selected.size > 0;
+  nodesDS.update(nodesDS.get().map((n) =>
+    ({ id: n.id, hidden: on && !visibleNodes.has(n.id) })));
+  edgesDS.update(edgesDS.get().map((e) =>
+    ({ id: e.id, hidden: on && !visibleEdges.has(e.id) })));
+}
+
 function renderGraph(data) {
   destroyGraph();
   graphAttrs = (data.ok && data.attrs) || {};
@@ -1381,6 +1423,12 @@ function renderGraph(data) {
   // (le wrapper évite de transmettre la référence du contexte
   // d'événement à une fonction qui ne l'utilise pas).
   graphNetwork.on("afterDrawing", () => positionBadges());
+  // Focus de sélection : sélection → masque les nœuds sans rapport ;
+  // désélection (dont clic sur le vide) → tout redevient visible
+  // (cf. graphFocusSelection). Ces événements ne firent que sur
+  // interaction utilisateur (pas sur selectNodes() programmatique).
+  graphNetwork.on("selectNode", () => graphFocusSelection());
+  graphNetwork.on("deselectNode", () => graphFocusSelection());
   updateGraphMeta(data);
 }
 
