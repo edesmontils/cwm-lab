@@ -1,1 +1,0 @@
-7. Réponds UNIQUEMENT avec un objet JSON : {"n3": "<le document N3 complet>", "note": "<résumé en une phrase du jeu de données généré, en français>"}

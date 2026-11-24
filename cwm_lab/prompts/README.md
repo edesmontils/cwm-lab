@@ -1,8 +1,9 @@
 # Prompts IA (génération de données N3)
 
 Les textes du prompt du bouton « Remplir la base (IA) » sont ici,
-dans des fichiers `.txt` **pour pouvoir les affiner à la main**
-sans toucher au code Python.
+dans des fichiers **Markdown** (`.md`) **pour pouvoir les affiner à
+la main** sans toucher au code Python — le Markdown est lisible pour
+qui retouche, et compris par le modèle.
 
 **Chaque génération re-lit les fichiers** (pas de redémarrage du
 serveur) ; ils sont aussi copiés dans le paquet PyPI.
@@ -18,25 +19,25 @@ du prompt final (les blocs conditionnels).
 
 | Fichier | Rôle | Placeholders |
 | --- | --- | --- |
-| `system.txt` | message `system` (rôle du modèle, anti-injection) | `${note_language}` — « Tu réponds en français. » / « You respond in English. » (langue de l'app, pour la note seule) |
-| `user.txt` | squelette du message `user` (contraintes 1–5) | `${n_facts}`, `${n_entities}` — taille demandée ; `${max_facts}`, `${max_entities}` — limites strictes (×2) ; + les blocs ci-dessous |
-| `rules_constraint.txt` | contrainte 6 — préfixes/propriétés exactes des règles | — (bloquée : présente seulement si l'exercice chargé a des règles) |
-| `json_fr.txt` / `json_en.txt` | contrainte 7 — réponse JSON unique (`n3` + `note`) | — (un seul des deux, selon la langue de l'app) |
-| `generic_domain.txt` | domaine par défaut (réseau familial) quand aucun exercice n'est chargé | `${base_uri}` — URI de base du document |
-| `feedback.txt` | bloc de régénération : les raisons de rejet des tentatives précédentes | `${reasons}` — une raison par ligne, `- contrôle : détail` |
+| `system.md` | message `system` (rôle du modèle, anti-injection) | `${note_language}` — « Tu réponds en français. » / « You respond in English. » (langue de l'app, pour la note seule) |
+| `user.md` | squelette du message `user` (liste numérotée des contraintes 1–5) | `${n_facts}`, `${n_entities}` — taille demandée ; `${max_facts}`, `${max_entities}` — limites strictes (×2) ; + les blocs ci-dessous |
+| `rules_constraint.md` | contrainte 6 — préfixes/propriétés exactes des règles | — (bloquée : présente seulement si l'exercice chargé a des règles) |
+| `json_fr.md` / `json_en.md` | contrainte 7 — réponse JSON unique (`n3` + `note`) | — (un seul des deux, selon la langue de l'app) |
+| `generic_domain.md` | domaine par défaut (réseau familial) quand aucun exercice n'est chargé | `${base_uri}` — URI de base du document |
+| `feedback.md` | bloc de régénération : les raisons de rejet des tentatives précédentes | `${reasons}` — une raison par bloc, `- contrôle : détail` |
 
-Blocs conditionnels dans `user.txt` :
+Blocs conditionnels dans `user.md` :
 
-- `${rules_constraint}` — contenu de `rules_constraint.txt`, seulement
-  si l'exercice chargé a des règles ;
-- `${json_constraint}` — contenu de `json_fr.txt` ou `json_en.txt` ;
+- `${rules_constraint}` — contenu de `rules_constraint.md`, seulement
+  si l'exercice chargé a des règles (poursuit la liste numérotée) ;
+- `${json_constraint}` — contenu de `json_fr.md` ou `json_en.md` ;
 - `${domaine_block}` — `<domaine>…énoncé…</domaine>` (tronqué à 8 000
   caractères, bornes codées dans `ia.py`) ;
 - `${regles_block}` — `<regles>…règles…</regles>` (tronqué à 6 000
   caractères) ;
-- `${generic_domain}` — contenu de `generic_domain.txt`, seulement si
+- `${generic_domain}` — contenu de `generic_domain.md`, seulement si
   ni énoncé ni règles ;
-- `${feedback_block}` — contenu de `feedback.txt`, seulement lors des
+- `${feedback_block}` — contenu de `feedback.md`, seulement lors des
   tentatives 2+ (régénération).
 
 Les blocs `<domaine>`/`<regles>`/`<rejet_precedent>` sont injectés
@@ -45,14 +46,18 @@ contenus ne sont PAS dans ces fichiers.
 
 ## Règles de retouche
 
+- Restez en **Markdown** simple (titres `##`, liste numérotée,
+  gras `**…**`, code `` `…` ``) — évitez les tableaux, images,
+  liens : le modèle lit le texte brut.
 - Gardez les numéros de contraintes (1–7) et les mots-clés que les
   contrôles a posteriori et les tests s'appuient sur
   (« DONNÉES SEULES », « log:implies », « JSON », « familial »,
   « written in English », « You respond in English. », « Tu réponds en
   français. ») — ou mettez à jour `tests/test_ia.py` avec.
-- Ne laissez pas de ligne blanche « perdue » entre deux contraintes :
-  les lignes vides sont conservées, sauf celles qui ne contiennent
-  qu'un placeholder vide.
+- Gardez chaque placeholder `${...}` sur **sa propre ligne** : une
+  ligne ne contenant qu'un placeholder vide est retirée du prompt
+  (si vous collez un placeholder au milieu d'une ligne, la ligne
+  reste, avec le placeholder vide visible).
 - La langue du prompt reste **française** (calibrée sur les énoncés
   du TP) ; seule la langue de la *note* suit l'app
   (`${note_language}` + le choix `json_fr` / `json_en`).

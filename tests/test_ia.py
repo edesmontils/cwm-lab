@@ -285,10 +285,10 @@ class TestIaPrompt(unittest.TestCase):
 
     def test_prompt_fichiers_present(self):
         """Les textes du prompt sont dans cwm_lab/prompts/ (fichiers
-        affinables à la main, embarqués dans le wheel)."""
-        for name in ("system.txt", "user.txt", "rules_constraint.txt",
-                     "json_fr.txt", "json_en.txt", "generic_domain.txt",
-                     "feedback.txt"):
+        Markdown affinables à la main, embarqués dans le wheel)."""
+        for name in ("system.md", "user.md", "rules_constraint.md",
+                     "json_fr.md", "json_en.md", "generic_domain.md",
+                     "feedback.md"):
             self.assertTrue((ia.PROMPTS_DIR / name).is_file(), name)
 
     def test_prompt_retouche_effective_sans_redemarrage(self):
@@ -300,14 +300,14 @@ class TestIaPrompt(unittest.TestCase):
         try:
             with tempfile.TemporaryDirectory() as tmp:
                 tmpdir = pathlib.Path(tmp)
-                for f in old_dir.glob("*.txt"):
+                for f in old_dir.glob("*.md"):
                     shutil.copy(f, tmpdir)
                 ia.PROMPTS_DIR = tmpdir
                 ia._PROMPT_CACHE.clear()
                 user0 = ia.build_messages("e", "", "http://example.org/d.n3",
                                           20, 5)[1]["content"]
                 self.assertNotIn("MARQUEUR_RETOUCHE_TEST", user0)
-                p = tmpdir / "user.txt"
+                p = tmpdir / "user.md"
                 p.write_text(p.read_text(encoding="utf-8")
                              + "\nMARQUEUR_RETOUCHE_TEST",
                              encoding="utf-8")

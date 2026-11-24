@@ -1,0 +1,1 @@
+6. **Préfixes et propriétés EXACTES** des règles existantes ci-dessous : les nouvelles données doivent s'appliquer à ces règles — choisis des valeurs qui déclenchent les règles ET des valeurs qui ne les déclenchent pas (les deux cas sont utiles au TP).

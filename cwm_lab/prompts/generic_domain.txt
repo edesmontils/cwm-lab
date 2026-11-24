@@ -1,1 +1,0 @@
-Domaine : un petit réseau familial — des personnes avec parentOf / spouseOf, un âge (en années) et une ville. Utilise le préfixe <${base_uri}> pour les propriétés et les types (ex. :Person).
