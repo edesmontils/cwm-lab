@@ -1575,6 +1575,29 @@ fetch("/api/version")
   })
   .catch(() => {});
 
+// Aide : popup des boutons et cases (bouton « ? » de la barre
+// d'état). Contenu statique en data-i18n — i18n.js le (re)traduit
+// à chaque changement de langue, ouvert ou fermé que soit le popup.
+const helpOverlay = document.getElementById("help-overlay");
+const btnHelp = document.getElementById("btn-help");
+const helpClose = document.getElementById("help-close");
+function closeHelp() {
+  if (helpOverlay.hidden) return;
+  helpOverlay.hidden = true;
+  btnHelp.focus();
+}
+btnHelp.addEventListener("click", () => {
+  helpOverlay.hidden = false;
+  helpClose.focus();
+});
+helpClose.addEventListener("click", closeHelp);
+helpOverlay.addEventListener("click", (e) => {
+  if (e.target === helpOverlay) closeHelp();   // clic sur le fond
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") closeHelp();
+});
+
 // ----------------------------------------------------------------------
 // i18n : changement de langue → re-rendu des résultats existants
 // ----------------------------------------------------------------------

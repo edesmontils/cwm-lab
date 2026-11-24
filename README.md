@@ -218,6 +218,15 @@ par `hidden` sur les DataSets vis (pas suppression) : positions et
 vue préservées, et le masque survit au changement de langue.
 Version `0.5.2`.
 
+**Aide** (2026-11-24) : un petit bouton **« ? »** dans la barre
+d'état en bas (aligné à droite) ouvre une **fenêtre popup qui
+explique ce que fait chaque bouton et chaque case à cocher** —
+barre d'entête, raisonnement, interrogation, validation, génération
+IA, graphe. Contenu statique en `data-i18n` : la popup suit la
+langue de l'interface (ouverte ou fermée). Fermeture : bouton,
+clic sur le fond, touche Échap (le focus revient au bouton « ? »).
+Version `0.5.2`.
+
 **P7 livrée** (2026-11-23) : **reprise d'ergonomie** — l'interface
 est repensée pour un étudiant qui découvre l'outil :
 

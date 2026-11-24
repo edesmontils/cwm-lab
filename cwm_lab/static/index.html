@@ -241,6 +241,47 @@
   <span><span data-i18n="colophon.version">CWM Lab, version</span> <span id="version">…</span></span>
   <span aria-hidden="true">·</span>
   <span>2026-11-23</span>
+  <button id="btn-help" data-i18n="help.btn" data-i18n-title="help.btnTitle"
+    data-i18n-aria="help.btnTitle">?</button>
 </footer>
+
+<!-- Aide : popup « très large » — ce que fait chaque bouton et chaque
+     case à cocher. Contenus en data-i18n : la langue suit l'interface
+     (i18n.js applique / ré-applique à chaque changement). -->
+<div id="help-overlay" hidden>
+  <div id="help-popup" role="dialog" aria-modal="true" aria-labelledby="help-title">
+    <div id="help-head">
+      <h2 id="help-title" data-i18n="help.title">Aide — boutons et cases</h2>
+      <button id="help-close" data-i18n="help.close">Fermer</button>
+    </div>
+    <div id="help-body">
+      <h3 data-i18n="help.secHeader">Barre d'entête</h3>
+      <p data-i18n="help.baseUri">Base URI — l'URI de base du document : les IRI courts (:alice) sont complétés avec elle.</p>
+      <p data-i18n="help.parse">Parse — analyse le document « données » et les « règles » (N3/Turtle) ; automatique pendant la saisie, forcé par ce bouton (ou ⌘⏎ / Ctrl⏎). Les erreurs sont localisées ligne/colonne.</p>
+      <p data-i18n="help.exercise">Exercice + Charger — remplit les éditeurs (données, règles, requête, conclusion) avec l'exercice choisi et affiche son énoncé.</p>
+      <p data-i18n="help.export">Export (N3 / Turtle / NTriples / RDF) — écrit le document courant au format choisi dans l'onglet « Export », avec lien de téléchargement.</p>
+      <p data-i18n="help.lang">Langue — change la langue de l'interface (FR/EN) ; le choix est mémorisé localement.</p>
+      <h3 data-i18n="help.secReasoning">Raisonnement</h3>
+      <p data-i18n="help.infer">Raisonner — applique les règles aux données : la clôture (faits nouveaux) est calculée et affichée dans l'onglet « Raisonnement » ; une incohérence (⊥) est signalée.</p>
+      <p data-i18n="help.mode">mode — convergence (think) : les règles s'appliquent jusqu'au point fixe ; 1 passe (applyRules) : chaque règle est appliquée une seule fois.</p>
+      <p data-i18n="help.timeout">timeout (s) — délai maximum de raisonnement ; 0 = sans limite.</p>
+      <p data-i18n="help.rulesStored">règles stockées — copie les énoncés-règles dans la clôture (comme cwm --rules) ; on peut alors les requêter.</p>
+      <h3 data-i18n="help.secQuery">Interroger</h3>
+      <p data-i18n="help.query">Interroger — exécute la requête SPARQL de l'éditeur « Requête » sur la base de connaissances ; les lignes de résultat sont dans l'onglet « Requête ».</p>
+      <p data-i18n="help.reasonFirst">raisonner avant d'interroger — calcule d'abord la clôture, puis ré-exécute la même requête : les lignes nouvelles (apportées par les règles) sont surlignées.</p>
+      <h3 data-i18n="help.secValidate">Valider</h3>
+      <p data-i18n="help.entail">Entraîne ? — vérifie que la conclusion (éditeur « Conclusion ») est bien contenue dans la clôture (données + règles appliquées).</p>
+      <p data-i18n="help.why">Pourquoi ? — génère la preuve de la conclusion dans l'onglet « Preuve » ; on peut ensuite l'altérer à la main.</p>
+      <p data-i18n="help.check">Vérifier la preuve — rejoue la dérivation de la preuve : une preuve valide est acceptée, une preuve altérée est rejetée.</p>
+      <h3 data-i18n="help.secGenerate">Générer (IA)</h3>
+      <p data-i18n="help.ia">Remplir la base (IA) — génère un jeu de données N3 réaliste (domaine de l'exercice chargé, sinon générique), contrôlé a posteriori (parse, cohérence, plausibilité), et l'injecte dans l'éditeur « données » — à vérifier avant usage.</p>
+      <p data-i18n="help.iaSize">faits ≈ / entités ≈ — taille approximative du jeu de données à générer ; le quota de séance est affiché sous le bouton.</p>
+      <h3 data-i18n="help.secGraph">Graphe</h3>
+      <p data-i18n="help.graphReason">après raisonnement — le graphe calcule d'abord la clôture, puis surligne en orange ce qu'elle ajoute (nœuds et arcs inférés).</p>
+      <p data-i18n="help.graphHide">attributs masqués — masque les nœuds-littéraux : les attributs sont regroupés en pastille (compteur) sur le nœud ; survolez la pastille pour les lire.</p>
+      <p data-i18n="help.graphFocus">clic sur un nœud — masque les nœuds qui ne le concernent pas (voisinage direct) ; un clic sur le vide réaffiche tout.</p>
+    </div>
+  </div>
+</div>
 </body>
 </html>

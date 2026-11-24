@@ -522,3 +522,75 @@ ul.new-facts li { margin: 0.15rem 0; }
   margin-top: 1rem;
 }
 #colophon span:first-child { color: #fff; font-weight: 500; }
+/* Aide : petit bouton rond de la barre d'état, aligné à droite */
+#btn-help {
+  margin-left: auto;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  border: 1px solid #2c3a4f;
+  background: #232f42;
+  color: #fff;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+}
+#btn-help:hover { background: #2c3a4f; }
+#btn-help:focus { outline: 1px solid #2563eb; }
+/* Popup d'aide : overlay + panneau scrollable */
+#help-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+#help-overlay[hidden] { display: none; }
+#help-popup {
+  background: #fff;
+  color: #1a2332;
+  border-radius: 10px;
+  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.35);
+  width: min(44rem, calc(100vw - 2rem));
+  max-height: calc(100vh - 2rem);
+  display: flex;
+  flex-direction: column;
+}
+#help-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.7rem 1rem;
+  border-bottom: 1px solid #dde3ec;
+}
+#help-head h2 { margin: 0; font-size: 1rem; }
+#help-close {
+  font: inherit;
+  font-size: 0.8rem;
+  padding: 0.25rem 0.7rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #fff;
+  color: #1a2332;
+  cursor: pointer;
+}
+#help-close:hover { background: #f1f5f9; }
+#help-body {
+  padding: 0.4rem 1rem 1rem;
+  overflow-y: auto;
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+#help-body h3 {
+  margin: 0.9rem 0 0.2rem;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #2563eb;
+}
+#help-body p { margin: 0.25rem 0; }
