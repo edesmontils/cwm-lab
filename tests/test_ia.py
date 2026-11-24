@@ -283,6 +283,62 @@ class TestIaPrompt(unittest.TestCase):
                                     20, 5, lang="xx")
         self.assertIn("Tu réponds en français.", msgs_xx[0]["content"])
 
+    def test_prompt_fichiers_present(self):
+        """Les textes du prompt sont dans cwm_lab/prompts/ (fichiers
+        affinables à la main, embarqués dans le wheel)."""
+        for name in ("system.txt", "user.txt", "rules_constraint.txt",
+                     "json_fr.txt", "json_en.txt", "generic_domain.txt",
+                     "feedback.txt"):
+            self.assertTrue((ia.PROMPTS_DIR / name).is_file(), name)
+
+    def test_prompt_retouche_effective_sans_redemarrage(self):
+        """Une retouche d'un fichier de prompt est visible à la
+        génération suivante, sans recharger le module (re-lecture au
+        changement de mtime/size)."""
+        import pathlib
+        old_dir, old_cache = ia.PROMPTS_DIR, ia._PROMPT_CACHE
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                tmpdir = pathlib.Path(tmp)
+                for f in old_dir.glob("*.txt"):
+                    shutil.copy(f, tmpdir)
+                ia.PROMPTS_DIR = tmpdir
+                ia._PROMPT_CACHE.clear()
+                user0 = ia.build_messages("e", "", "http://example.org/d.n3",
+                                          20, 5)[1]["content"]
+                self.assertNotIn("MARQUEUR_RETOUCHE_TEST", user0)
+                p = tmpdir / "user.txt"
+                p.write_text(p.read_text(encoding="utf-8")
+                             + "\nMARQUEUR_RETOUCHE_TEST",
+                             encoding="utf-8")
+                os.utime(p, (p.stat().st_atime, p.stat().st_mtime + 5))
+                user1 = ia.build_messages("e", "", "http://example.org/d.n3",
+                                          20, 5)[1]["content"]
+                self.assertIn("MARQUEUR_RETOUCHE_TEST", user1)
+        finally:
+            ia.PROMPTS_DIR, ia._PROMPT_CACHE = old_dir, old_cache
+
+    def test_prompt_fichier_introuvable_repli(self):
+        """Fichier de prompt supprimé à la main → repli sur les
+        textes d'origine en dur : la génération ne casse pas."""
+        import pathlib
+        old_dir, old_cache = ia.PROMPTS_DIR, ia._PROMPT_CACHE
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                ia.PROMPTS_DIR = pathlib.Path(tmp)   # vide
+                ia._PROMPT_CACHE.clear()
+                msgs = ia.build_messages("e", RULES_RECETTES,
+                                         "http://example.org/d.n3",
+                                         20, 5)
+                user = msgs[1]["content"]
+                self.assertIn("DONNÉES SEULES", user)
+                self.assertIn("Tu réponds en français.",
+                              msgs[0]["content"])
+                self.assertIn("<domaine>", user)
+                self.assertIn("<regles>", user)
+        finally:
+            ia.PROMPTS_DIR, ia._PROMPT_CACHE = old_dir, old_cache
+
 
 # ----------------------------------------------------------------------
 # contrôles a posteriori

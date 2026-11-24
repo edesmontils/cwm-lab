@@ -60,12 +60,14 @@ cwm-lab = "cwm_lab.server:main"
 [tool.setuptools]
 packages = ["cwm_lab"]
 
-# Le frontend (static/), les exercices et les exemples de config
-# voyagent avec le paquet (installable hors dépôt, cwm_lab/ seul).
+# Le frontend (static/), les exercices, les prompts IA (affinables à
+# la main) et les exemples de config voyagent avec le paquet
+# (installable hors dépôt, cwm_lab/ seul).
 [tool.setuptools.package-data]
 cwm_lab = [
     "static/**/*",
     "exercises/**/*",
+    "prompts/**/*",
     "config.yaml.example",
     ".env.example",
 ]

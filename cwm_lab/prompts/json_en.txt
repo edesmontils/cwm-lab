@@ -1,0 +1,1 @@
+7. Respond ONLY with a JSON object: {"n3": "<the complete N3 document>", "note": "<one-sentence summary of the generated dataset, written in English>"}

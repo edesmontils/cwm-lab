@@ -227,6 +227,17 @@ langue de l'interface (ouverte ou fermée). Fermeture : bouton,
 clic sur le fond, touche Échap (le focus revient au bouton « ? »).
 Version `0.5.2`.
 
+**Prompts IA externalisés** (2026-11-24) : les textes du prompt du
+bouton « Remplir la base (IA) » sont sortis du code Python pour
+pouvoir être **affinés à la main** — `cwm_lab/prompts/*.txt`
+(`system.txt`, `user.txt`, contraintes conditionnelles, domaine
+générique, feedback de régénération ; contrat et placeholders
+documentés dans `prompts/README.md`). Les fichiers sont **re-lus à
+chaque génération** (une retouche est effective sans redémarrer le
+serveur), embarqués dans le wheel, et un fichier manquant fait
+basculer le prompt sur les textes d'origine en dur (une retouche
+ratée ne casse jamais la génération). Version `0.5.2`.
+
 **P7 livrée** (2026-11-23) : **reprise d'ergonomie** — l'interface
 est repensée pour un étudiant qui découvre l'outil :
 
