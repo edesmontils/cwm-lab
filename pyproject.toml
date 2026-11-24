@@ -17,8 +17,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cwm-lab"
-version = "0.5.2"
-description = "CWM Lab — tableau de bord local sur CWM 2.0 : parse N3/Turtle, raisonnement, SPARQL, preuves, graphe, génération de données par IA, interface FR/EN (outil de TP Web sémantique)"
+version = "0.5.3"
+description = "CWM Lab — local web dashboard over CWM 2.0: N3/Turtle parsing, forward-chaining reasoning, SPARQL, proofs, triple graph, AI data generation — semantic web teaching lab (FR/EN) (outil de TP Web sémantique)"
 readme = "README.md"
 # Licence : Apache-2.0 (voir LICENSE). Le moteur CWM 2.0, dépendance,
 # est sous licence W3C Software (code d'origine) / Apache-2.0
@@ -31,11 +31,18 @@ authors = [
 maintainers = [
     {name = "Emmanuel Desmontils", email = "emmanuel.desmontils@univ-nantes.fr"},
 ]
-keywords = ["semantic-web", "rdf", "n3", "turtle", "sparql", "reasoner", "education"]
+keywords = [
+    # recherche PyPI : les termes techniques (EN) viennent en tête
+    "cwm", "semantic-web", "rdf", "n3", "turtle", "sparql",
+    "reasoner", "forward-chaining", "knowledge-graph", "ontology",
+    "proof", "triple-graph", "education", "teaching", "lab",
+]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
+    "Environment :: Web Environment",
     "Intended Audience :: Education",
     "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
     "Topic :: Education",
