@@ -1,5 +1,7 @@
 # Prompts IA (génération de données N3)
 
+*Version française — l'anglais est dans [`README.en.md`](README.en.md).*
+
 Les textes du prompt du bouton « Remplir la base (IA) » sont ici,
 dans des fichiers **Markdown** (`.md`) **pour pouvoir les affiner à
 la main** sans toucher au code Python — le Markdown est lisible pour
