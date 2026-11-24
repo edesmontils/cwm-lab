@@ -276,6 +276,29 @@ est repensée pour un étudiant qui découvre l'outil :
 
 10 tests ajoutés (110 au total) ; version `0.2.0`.
 
+**P6 livrée** (2026-11-24) : **déploiement serveur** — le TP passe
+sur un serveur sans refonte (l'appli est stateless). Trois
+changements de code : (1) le **timeout du raisonnement est un
+subprocess tuable** — le worker `cwm_lab/_reason_worker.py`
+(paramètres JSON sur stdin, résultat marqué sur stdout) est lancé
+par `engine._run_closure` (`Popen` + `communicate(timeout=)` +
+`kill()` + `wait()` explicites) ; au délai, plus rien ne tourne en
+fond (avant : un thread abandonné continuait `think()` — vecteur de
+DoS sur un serveur partagé) ; le diff des nouveaux faits, les
+libellés i18n et la preuve sont calculés dans le worker (même
+store : les symboles CWM y sont liés) ; (2) un **plafond de
+concurrence** (`max_reason_concurrent`, défaut 8, `config.yaml`) :
+au-delà, les 5 fonctions de raisonnement répondent **503 « serveur
+occupé »** (`busy: true`, libellé `doc.server` FR/EN dans le
+front) — 30 étudiants simultanés sans blocage ; (3) une
+**application WSGI** `cwm_lab.server:app` (même API JSON que le
+serveur standard) derrière **gunicorn** — dépendance de
+*déploiement* uniquement (`requirements-deploy.txt`, jamais
+importée par le code du TP). Docs : `DEPLOY.md` / `DEPLOY.en.md`
+(3 niveaux : salle de TP zéro code / gunicorn + systemd + Caddy /
+Internet). 11 tests ajoutés (196 au total, dont un E2E gunicorn
+réel) ; version `0.5.4`.
+
 Décisions actées :
 
 - **Stack** : backend Python **stdlib uniquement** (`http.server` + JSON),
@@ -307,8 +330,10 @@ fonctionne). Deux fichiers optionnels, dans `cwm_lab/` :
 
 - `config.yaml` — paramètres **non sensibles** : rétention du cache
   disque/mémoire (`ttl_disk`, `ttl_memory`), taille max disque,
-  nombre d'entrées mémoire, et pour la P9 les plafonds de **quota
-  de séance de l'IA** (`ia_max_requests`, `ia_max_tokens`,
+  nombre d'entrées mémoire, le **plafond de concurrence des
+  raisonnements** de la P6 (`max_reason_concurrent`, défaut 8 —
+  au-delà, 503 « serveur occupé ») et pour la P9 les plafonds de
+  **quota de séance de l'IA** (`ia_max_requests`, `ia_max_tokens`,
   `ia_max_attempts`, `ia_timeout`, `ia_max_tokens_response`).
   Installer :
   `cp cwm_lab/config.yaml.example cwm_lab/config.yaml && chmod 600 cwm_lab/config.yaml` ;
@@ -379,7 +404,12 @@ cwm-lab/
   parser `notation3` — pas de passage par les CLI, sauf `check`
   (subprocess `python -m swap.check`, car il manipule `sys.argv`/`stdin`) ;
 - **Timeout par requête** : une règle récursive ne doit jamais bloquer
-  le TP (chaînage avant non garanti sur des règles cycliques) ;
+  le TP (chaînage avant non garanti sur des règles cycliques) — depuis
+  la P6, le raisonnement tourne dans un **subprocess tué** au délai
+  (plus rien ne tourne en fond) ;
 - **Zéro dépendance propre** : CWM 2.0 est la seule dépendance ;
   CodeMirror et vis.js sont téléchargés une fois dans
-  `cwm_lab/static/vendor/` et commités (pas de CDN).
+  `cwm_lab/static/vendor/` et commités (pas de CDN). Exception
+  encadrée (P6) : **gunicorn** est une dépendance de *déploiement*
+  uniquement (`requirements-deploy.txt`, jamais importée par le code
+  du TP).

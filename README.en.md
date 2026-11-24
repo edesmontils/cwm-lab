@@ -264,6 +264,28 @@ interface is redesigned for a student discovering the tool:
 
 10 tests added (110 total); version `0.2.0`.
 
+**P6 delivered** (2026-11-24): **server deployment** — the lab
+moves to a server with no rework (the app is stateless). Three code
+changes: (1) the **reasoning timeout is a killable subprocess** —
+the worker `cwm_lab/_reason_worker.py` (JSON params on stdin,
+marked result on stdout) is launched by `engine._run_closure`
+(`Popen` + `communicate(timeout=)` + explicit `kill()` +
+`wait()`); at the deadline, nothing keeps running in the background
+(before: an abandoned thread kept `think()`-ing — a DoS vector on
+a shared server); the new-facts diff, the i18n labels and the
+proof are computed in the worker (same store: CWM symbols are
+bound to it); (2) a **concurrency ceiling**
+(`max_reason_concurrent`, default 8, `config.yaml`): beyond it,
+the 5 reasoning functions answer **503 “server busy”**
+(`busy: true`, `doc.server` label FR/EN in the front end) — 30
+simultaneous students without blocking; (3) a **WSGI application**
+`cwm_lab.server:app` (same JSON API as the standard server) behind
+**gunicorn** — a *deployment-only* dependency
+(`requirements-deploy.txt`, never imported by the lab code). Docs:
+`DEPLOY.md` / `DEPLOY.en.md` (3 levels: lab room zero-code /
+gunicorn + systemd + Caddy / Internet). 11 tests added (196 total,
+including a real gunicorn E2E); version `0.5.4`.
+
 Settled decisions:
 
 - **Stack**: backend in **Python stdlib only** (`http.server` +
@@ -295,7 +317,9 @@ in `cwm_lab/`:
 
 - `config.yaml` — **non-sensitive** settings: disk/memory cache
   retention (`ttl_disk`, `ttl_memory`), max disk size, memory entry
-  count, and for P9 the **AI session quota** limits
+  count, the P6 **reasoning concurrency ceiling**
+  (`max_reason_concurrent`, default 8 — beyond it, 503 “server
+  busy”) and for P9 the **AI session quota** limits
   (`ia_max_requests`, `ia_max_tokens`, `ia_max_attempts`,
   `ia_timeout`, `ia_max_tokens_response`). Install:
   `cp cwm_lab/config.yaml.example cwm_lab/config.yaml && chmod 600 cwm_lab/config.yaml`;
@@ -367,7 +391,11 @@ cwm-lab/
   except `check` (subprocess `python -m swap.check`, because it
   manipulates `sys.argv`/`stdin`);
 - **Per-request timeout**: a recursive rule must never block the
-  lab (forward chaining not guaranteed on cyclic rules);
+  lab (forward chaining not guaranteed on cyclic rules) — since P6,
+  reasoning runs in a **subprocess killed** at the deadline
+  (nothing keeps running in the background);
 - **Zero own dependencies**: CWM 2.0 is the only dependency;
   CodeMirror and vis.js are downloaded once into
-  `cwm_lab/static/vendor/` and committed (no CDN).
+  `cwm_lab/static/vendor/` and committed (no CDN). Framed
+  exception (P6): **gunicorn** is a *deployment-only* dependency
+  (`requirements-deploy.txt`, never imported by the lab code).
