@@ -204,6 +204,11 @@ de l'app** — le prompt reste en français (calibré), seule la
 consigne de la note suit la langue. 13 tests + 2 tests de
 l'empreinte de cache + 2 tests de la note IA ; version `0.5.1`.
 
+**Ergonomie** (2026-11-24) : le **sélecteur de langue** quitte la
+barre d'outils pour la **toute première ligne de l'entête** (à
+droite du titre), toujours visible avant tout autre contrôle.
+Version `0.5.2`.
+
 **P7 livrée** (2026-11-23) : **reprise d'ergonomie** — l'interface
 est repensée pour un étudiant qui découvre l'outil :
 

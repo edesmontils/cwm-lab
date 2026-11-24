@@ -8,7 +8,20 @@
 </head>
 <body>
 <header>
-  <h1>CWM Lab <span class="sub"><span data-i18n="header.subPre">— cohérence, validité, règles (</span><a id="cwm-link" class="doc-link" data-i18n="header.docLinkText" data-i18n-href="header.docLink" data-i18n-title="header.docTitle" href="https://gitlab.univ-nantes.fr/desmontils-e/cwm/-/blob/main/README.md" target="_blank" rel="noopener">CWM 2.0</a><span data-i18n="header.subPost">)</span></span></h1>
+  <!-- Première ligne : titre + sélecteur de langue (aligné à droite).
+       i18n.js : FR par défaut, persistance locale ; les chaînes
+       statiques portent data-i18n, les chaînes dynamiques sont
+       re-rendues par app.js. -->
+  <div id="titlebar">
+    <h1>CWM Lab <span class="sub"><span data-i18n="header.subPre">— cohérence, validité, règles (</span><a id="cwm-link" class="doc-link" data-i18n="header.docLinkText" data-i18n-href="header.docLink" data-i18n-title="header.docTitle" href="https://gitlab.univ-nantes.fr/desmontils-e/cwm/-/blob/main/README.md" target="_blank" rel="noopener">CWM 2.0</a><span data-i18n="header.subPost">)</span></span></h1>
+    <span class="lang-group">
+      <label for="lang-select" class="toolbar-label" data-i18n="bar.lang">Langue</label>
+      <select id="lang-select" data-i18n-title="bar.langTitle">
+        <option value="fr">Français</option>
+        <option value="en">English</option>
+      </select>
+    </span>
+  </div>
   <div id="toolbar">
     <label for="base-uri" class="toolbar-label" data-i18n="bar.baseUri">Base&nbsp;URI</label>
     <input id="base-uri" type="text" spellcheck="false"
@@ -21,15 +34,6 @@
       <option value="" data-i18n="bar.exerciseNone">— aucun —</option>
     </select>
     <button id="btn-load-exercise" data-i18n="bar.load" data-i18n-title="bar.loadTitle">Charger</button>
-    <!-- Sélecteur de langue (i18n.js) : FR par défaut, persistance
-         locale ; les chaînes statiques portent data-i18n, les
-         chaînes dynamiques sont re-rendues par app.js. -->
-    <span class="bar-sep" aria-hidden="true"></span>
-    <label for="lang-select" class="toolbar-label" data-i18n="bar.lang">Langue</label>
-    <select id="lang-select" data-i18n-title="bar.langTitle">
-      <option value="fr">Français</option>
-      <option value="en">English</option>
-    </select>
   </div>
   <div id="toolbar-export">
     <span class="toolbar-label" data-i18n="bar.export">Export&nbsp;:</span>

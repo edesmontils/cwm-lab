@@ -11,8 +11,24 @@ header {
   color: #fff;
   padding: 0.6rem 1rem;
 }
-header h1 { margin: 0 0 0.5rem; font-size: 1.15rem; font-weight: 600; }
+header h1 { font-size: 1.15rem; font-weight: 600; }
 header h1 .sub { font-weight: 400; font-size: 0.85rem; color: #9fb0c8; }
+/* Première ligne de l'entête : titre à gauche, sélecteur de langue
+   à droite (P10.1 — ergonomie) */
+#titlebar {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+}
+#titlebar h1 { margin: 0; }
+#titlebar .lang-group {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
 /* Lien vers la doc CWM 2.0 (README dans la langue de l'interface) */
 header .doc-link { color: #7ea8e8; text-decoration: none; }
 header .doc-link:hover { color: #a8c8f2; text-decoration: underline; }
