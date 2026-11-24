@@ -44,6 +44,49 @@ Les blocs `<domaine>`/`<regles>`/`<rejet_precedent>` sont injectés
 par le code (`cwm_lab/ia.py`, `build_messages`) ; les textes des
 contenus ne sont PAS dans ces fichiers.
 
+## Comment le domaine est défini (et le cibler dans sa retouche)
+
+Le « domaine » du prompt n'est **pas un champ structuré** : c'est
+l'**énoncé Markdown de l'exercice chargé** + **ses règles** tels
+qu'ils sont dans l'interface. Trois sources, par ordre de priorité :
+
+1. **L'exercice chargé** (dossier `cwm_lab/exercises/<nom>/`) :
+   - `enonce.md` (+ `enonce.en.md`) — le texte qui *décrit le
+     domaine* : vocabulaire (classes/propriétés), fichiers,
+     contraintes, contexte pédagogique ; il alimente le bloc
+     `<domaine>`. C'est le principal levier de réalisme : affiner
+     l'énoncé affine le domaine généré, sans toucher à ces prompts.
+   - `regles.n3` — le **vocabulaire exact** (préfixes, propriétés) ;
+     il alimente le bloc `<regles>` et active la contrainte 6
+     (`rules_constraint.md`) : les nouvelles données doivent
+     s'appliquer à ces règles.
+2. **L'éditeur « règles » courant** : ce qui est envoyé est le
+   contenu *courant* de l'éditeur (pas le fichier de l'exercice) —
+   si l'étudiant a modifié ses règles, les données générées suivent
+   *ses* règles. Les **données** de l'exercice (`donnees.n3`) ne sont
+   **jamais** envoyées : le modèle génère des données nouvelles, pas
+   une copie de l'exemple.
+3. **Aucun exercice chargé** (ni énoncé ni règles) → le repli
+   `generic_domain.md` (réseau familial générique, avec la base URI
+   du document).
+
+Détails d'assemblage codés dans `build_messages` (ia.py) :
+
+- `<domaine>` : l'énoncé tronqué à **8 000** caractères
+  (`_MAX_ENONCE`) ; `<regles>` : les règles tronquées à **6 000**
+  (`_MAX_REGLES`) ;
+- **anti-injection** : le message `system.md` précise que le
+  contenu des blocs est de la **DONNÉE contextuelle** — l'énoncé
+  peut contenir du Markdown avec des instructions destinées à
+  l'étudiant, le modèle ne doit pas s'y conformer.
+
+| Pour cibler… | On retouche |
+| --- | --- |
+| le **domaine** (thème, réalisme, valeurs plausibles) | l'`enonce.md` de l'exercice — ou `user.md` / `generic_domain.md` pour le domaine générique |
+| le **vocabulaire** (préfixes/propriétés utilisées) | les règles (exercice ou éditeur) — la contrainte 6 verrouille déjà l'exactitude ; `rules_constraint.md` si besoin de nuancer |
+| la **taille / le format** | `user.md` (contraintes 5 et 7) — les bornes de troncature restent codées dans ia.py |
+| la **langue de la note** | `${note_language}` + `json_fr.md` / `json_en.md` |
+
 ## Règles de retouche
 
 - Restez en **Markdown** simple (titres `##`, liste numérotée,
