@@ -815,13 +815,15 @@ anglais (salle internationale, lecteur de la documentation
   (`/api/ia/status?lang=`, `lang` dans le body de
   `/api/ia/generate` ; défaut `fr`, toute autre valeur repli `fr`).
   **Le prompt du modèle reste en français** (calibré sur les
-  énoncés du TP) ; la `note` du modèle et les messages du moteur de
-  parse CWM (anglais technique) sont du **contenu**, non localisés.
+  énoncés du TP) ; les messages du moteur de parse CWM (anglais
+  technique) sont du **contenu**, non localisés ; la `note` du
+  modèle est **localisée en P10.1** (demandée au modèle dans la
+  langue de l'app).
 
 **Hors périmètre (contenu, pas interface)** : les énoncés des
 exercices et leurs titres (contenu pédagogique — **pris en charge en
-P10.1**), la note du modèle IA, les erreurs du parser CWM (anglais
-technique).
+P10.1**), la note du modèle IA (**localisée en P10.1**), les erreurs
+du parser CWM (anglais technique).
 
 **Critère d'acceptation** : la bascule FR ↔ EN dans l'entête
 retourne toute l'interface (statiques + résultats déjà affichés)
@@ -924,8 +926,12 @@ d'exercices** sont traduits (`enonce.en.md`).
   dans `Cache.make_key` : tout changement de code/données invalide
   automatiquement le cache disque (`server.CODE_SIG`, calculée au
   démarrage) ;
-- **IA (P9)** : `entities` = simple comptage, prompt reste FR —
-  aucun changement.
+- **IA (P9)** : `entities` = simple comptage ; le prompt reste FR
+  (calibré) mais la **`note` du modèle est demandée dans la langue
+  de l'app** (`build_messages(lang=…)` : "You respond in English."
+  + consigne 7 EN) — c'était la dernière chaîne FR visible en mode
+  EN (signalée par l'utilisateur) ; vérifiée en direct (note EN en
+  mode EN, note FR en mode FR).
 
 **Faits techniques établis en P10.1** (à réutiliser) :
 
@@ -1003,3 +1009,4 @@ bilingues, repli sans `enonce.en.md`)
 | 2026-11-23 | **`cwm-lab` 0.5.0 publiée sur PyPI** — https://pypi.org/project/cwm-lab/0.5.0/ (wheel + sdist) : la P10 complète (i18n FR/EN + sélecteur d'entête + lien doc CWM 2.0 localisé) est installable en `pip install cwm-lab`. Validation : wheel 41 entrées (`i18n.js` présent, `.env` **absent**), **installation en venv vierge depuis PyPI** : version 0.5.0, lien d'entête + cibles FR/EN dans le HTML/i18n installés, `cwm_lab.ia.LANGS` importable. *Nuance TestPyPI* : la 0.5.0 de l'index de test est un build préliminaire (avant le lien d'entête) — non remplaçable (nom de fichier consommé, l'API de suppression TestPyPI n'existe plus) ; seule la PyPI fait foi |
 | 2026-11-23 | **P10.1 livrée** : libellés bilingues des ontologies d'exercices — `rdfs:label` `@fr`/`@en` sur les classes/propriétés/individus des deux exercices (prédicats/classes **typés** `rdfs:Property`/`rdfs:Class` — le contrôle de plausibilité IA exige 0 sujet non typé), noms propres **sans étiquette** (démo du repli), 3 maladies des corrigés libellées FR+EN ; **résolution côté backend** (`engine._label_index`/`_pick_label` : langue de l'app → sans étiquette → premier, déterministe après `canonicalize()`) — `lang` sur `infer`/`query`/`graph`/`list_exercises`/`load_exercise`, appliqué aux nouveaux faits, aux lignes de requête (diff sur valeurs brutes puis traduit), aux nœuds/arcs/attributs du graphe ; **énoncés traduits** (`enonce.en.md` optionnel, `enonce.md` = repli, titre du menu = 1er `#` de la langue) ; requêtes d'exercice sur **ressources** (plus de `rdfs:label ?libPat` — doublons) ; front : `lang` dans les bodies + `?lang=`, au changement de langue re-fetch infer/query/énoncé + **mise à jour in place** des DataSets vis (pas de reconstruction du réseau), éditeurs jamais touchés ; `rdfs:label` exclu des attributs masqués (déjà le libellé du nœud) ; recalibrage IA : `recettes` 774 faits / 108 entités (577/74 avant) ; 13 tests `TestLabelsI18n` (178 au total) ; version 0.5.1 |
 | 2026-11-24 | **Fix P10.1 — cache disque partagé : empreinte du code dans la clé** : reproduction du signalement « le graphe / l'énoncé ne changent pas à la bascule de langue » — deux causes : (1) les instances lancées avant le code P10.1 (install éditable 8000, dev 8765) gardaient l'engine **en mémoire** (pas de hot-reload Python) alors que les statiques sont re-lues à chaque requête → front nouveau + backend ancien ; (2) le **cache disque est partagé entre instances** (TTL 7 j) et sa clé ne dépendait que du payload : des entrées écrites par l'ancien engine (qui ignorait `lang`) étaient servies au nouveau. Correction : `cache.code_signature()` (hash des `.py` du paquet + `exercises/`, `static/` exclue) incluse dans `Cache.make_key` (`sig`, calculée au démarrage — `server.CODE_SIG`) : tout changement de code ou de données d'exercices invalide automatiquement le cache disque ; 131 entrées obsolètes purgées (`ia_quota.json` préservé) ; instances 8000/8931 redémarrées ; 2 tests (`make_key` sensible à `sig`, `code_signature` stable/sensible/`""` si dossier absent) — 180 tests OK ; vérifié en navigateur sur 8000 : bascule FR↔EN, énoncé + meta + libellés du graphe in place, zéro erreur console ; version inchangée (0.5.1 non publiée) |
+| 2026-11-24 | **Fix P10.1 (2) — note du modèle IA dans la langue de l'app** : signalement « encore une phrase en français » en mode EN — la **`note`** du modèle (seul texte naturel de la réponse, affichée dans la bannière) restait FR : le prompt disait « Tu réponds en français ». Correction minimale : `build_messages(lang=…)` — system « You respond in English. » + consigne 7 en EN (« one-sentence summary … written in English ») ; le reste du prompt reste FR (calibré) ; repli `fr` si langue inconnue ; `generate()` transmet `lang` ; 2 tests (prompt fr/en/repli, `generate` → messages du proxy) ; **vérifié en direct** : génération famille EN → note « A family dataset with 8 people… », génération FR → note FR ; 57 tests `test_ia` (182 au total) ; version inchangée (0.5.1 non publiée) |

@@ -198,8 +198,11 @@ redémarrages (TTL 7 j), la clé porte aussi une **empreinte du code
 et des données d'exercices** (`cache.code_signature`, calculée au
 démarrage) : un changement de code invalide automatiquement tout le
 cache — jamais une entrée écrite par une version antérieure de
-l'engine. 13 tests + 2 tests de l'empreinte de cache ;
-version `0.5.1`.
+l'engine. La **note du modèle IA** (seul texte naturel de la
+réponse, affichée dans la bannière) est demandée **dans la langue
+de l'app** — le prompt reste en français (calibré), seule la
+consigne de la note suit la langue. 13 tests + 2 tests de
+l'empreinte de cache + 2 tests de la note IA ; version `0.5.1`.
 
 **P7 livrée** (2026-11-23) : **reprise d'ergonomie** — l'interface
 est repensée pour un étudiant qui découvre l'outil :

@@ -266,6 +266,23 @@ class TestIaPrompt(unittest.TestCase):
         self.assertIn("rejet_precedent", user)
         self.assertIn("parse : erreur de syntaxe", user)
 
+    def test_note_dans_la_langue_de_l_app(self):
+        """La note du modèle (seul texte naturel de la réponse,
+        affichée à l'étudiant) est demandée dans la langue de
+        l'app — le reste du prompt reste en français (calibré)."""
+        msgs_fr = ia.build_messages("e", "", "http://example.org/d.n3",
+                                    20, 5)
+        self.assertIn("Tu réponds en français.", msgs_fr[0]["content"])
+        self.assertNotIn("in English", msgs_fr[1]["content"])
+        msgs_en = ia.build_messages("e", "", "http://example.org/d.n3",
+                                    20, 5, lang="en")
+        self.assertIn("You respond in English.", msgs_en[0]["content"])
+        self.assertIn("written in English", msgs_en[1]["content"])
+        # langue inconnue → repli français
+        msgs_xx = ia.build_messages("e", "", "http://example.org/d.n3",
+                                    20, 5, lang="xx")
+        self.assertIn("Tu réponds en français.", msgs_xx[0]["content"])
+
 
 # ----------------------------------------------------------------------
 # contrôles a posteriori
@@ -376,6 +393,25 @@ class TestIaGenerate(unittest.TestCase):
         self.assertEqual(t.calls[0]["url"], "https://proxy.test/v1/chat/completions")
         self.assertEqual(t.calls[0]["api_key"], "sk-test")
         self.assertEqual(t.calls[0]["payload"]["model"], "proxyiag/test")
+
+    def test_lang_transmise_au_prompt(self):
+        """``generate(lang=…)`` → la note est demandée dans la langue
+        de l'app (messages du proxy inspectés)."""
+        t = FakeTransport([ok_response(KB_RECETTES)])
+        ia.generate(make_config(self.tmp), rules=RULES_RECETTES,
+                    base_uri=BASE_URI, n_facts=600, n_entities=100,
+                    transport=t, lang="en")
+        msgs = t.calls[0]["payload"]["messages"]
+        self.assertIn("You respond in English.", msgs[0]["content"])
+        self.assertIn("written in English", msgs[1]["content"])
+        # et le repli français sans lang
+        t2 = FakeTransport([ok_response(KB_RECETTES)])
+        ia.generate(make_config(self.tmp), rules=RULES_RECETTES,
+                    base_uri=BASE_URI, n_facts=600, n_entities=100,
+                    transport=t2)
+        msgs2 = t2.calls[0]["payload"]["messages"]
+        self.assertIn("Tu réponds en français.", msgs2[0]["content"])
+        self.assertIn("en français", msgs2[1]["content"])
 
     def test_rejet_syntaxe_puis_succes(self):
         t = FakeTransport([
